@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Summit — productivity prototype</title>
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/phone.css" />
+  <link rel="stylesheet" href="css/screens.css" />
+</head>
+<body>
+  <main class="stage">
+    <!-- The iPhone frame. The screen + tab bar are injected by js/app.js -->
+    <div class="phone" id="phone">
+      <div class="notch"><span></span></div>
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="statusbar-icons">●●● 5G ▮▮▮</span>
+      </div>
+      <section class="screen" id="screen"></section>
+      <nav class="tabbar" id="tabbar"></nav>
+    </div>
+  </main>
+
+  <!-- Loaded in order: data, then stats helpers, then screen renderers, then app -->
+  <script src="js/data.js"></script>
+  <script src="js/stats.js"></script>
+  <script src="js/screens.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

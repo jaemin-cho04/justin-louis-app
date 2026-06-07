@@ -1,0 +1,105 @@
+/* ---------------------------------------------------------------
+   screens.css — styling for content inside the phone screen.
+   --------------------------------------------------------------- */
+.greeting { font-size: 14px; color: var(--text-2); margin: 2px 0 18px; }
+
+/* progress bars (Home) */
+.bar-card { background: var(--bg-soft); border-radius: var(--r-md); padding: 16px; margin-bottom: 12px; }
+.bar-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 9px; }
+.bar-head .label { font-weight: 600; font-size: 15px; }
+.bar-head .value { font-size: 15px; font-weight: 600; color: var(--info); }
+.bar-head .value.muted { color: var(--text-3); }
+.seg { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: #e4e2db; gap: 2px; }
+.seg > i { display: block; height: 100%; }
+.bar-note { font-size: 12px; color: var(--text-3); margin-top: 9px; }
+
+.done { background: var(--done); }
+.miss { background: var(--miss); }
+.try  { background: var(--try);  }
+
+/* log grid */
+.log-sub { font-size: 12px; color: var(--text-3); margin: 0 0 14px; }
+.grid-row {
+  display: grid;
+  grid-template-columns: 88px repeat(7, 1fr);
+  gap: 5px;
+  align-items: center;
+  margin-bottom: 5px;
+}
+.grid-head { align-items: end; margin-bottom: 6px; }
+.col-day { font-size: 10px; text-align: center; color: var(--text-3); }
+.col-day.today { color: var(--info); font-weight: 600; }
+.row-name { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cell {
+  width: 100%; aspect-ratio: 1;
+  border-radius: 7px;
+  border: 0.5px solid var(--border);
+  background: #fff;
+  cursor: pointer;
+  transition: transform .08s;
+}
+.cell:active { transform: scale(0.9); }
+.cell.done { background: var(--done); border-color: transparent; }
+.cell.miss { background: var(--miss); border-color: transparent; }
+.cell.try  { background: var(--try);  border-color: transparent; }
+
+.detail {
+  margin-top: 14px;
+  background: var(--bg-soft);
+  border-radius: var(--r-md);
+  padding: 14px;
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+.detail b { color: var(--text-1); }
+
+/* friend cards */
+.friend {
+  background: var(--bg-card);
+  border: 0.5px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 14px;
+  margin-bottom: 14px;
+}
+.friend-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 600; background: var(--info-soft); color: var(--info);
+}
+.avatar.lg { width: 64px; height: 64px; font-size: 24px; }
+.avatar.plain { background: var(--bg-soft); color: var(--text-2); }
+.friend-name { font-weight: 600; font-size: 14px; }
+.friend-meta { font-size: 12px; color: var(--text-3); }
+.comments { margin-top: 12px; border-top: 0.5px solid var(--border); padding-top: 10px; }
+.comments .from { font-size: 12px; color: var(--text-3); margin-bottom: 4px; }
+.comments p { font-size: 13px; margin: 0 0 8px; }
+.chips { display: flex; gap: 7px; margin-top: 12px; }
+.chip {
+  font-size: 12px; padding: 6px 12px;
+  border-radius: 14px; border: 0.5px solid var(--border);
+  background: none; cursor: pointer; color: var(--text-2);
+}
+.chip.block { width: 100%; padding: 11px; margin-top: 14px; }
+
+/* goals list */
+.goal-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 0; border-bottom: 0.5px solid var(--border); font-size: 14px;
+}
+.tag { font-size: 12px; padding: 3px 10px; border-radius: 12px; background: var(--bg-soft); color: var(--text-2); }
+
+/* you / account */
+.profile { display: flex; flex-direction: column; align-items: center; margin: 14px 0 18px; }
+.profile h2 { font-size: 18px; margin: 10px 0 0; }
+.profile .handle { font-size: 13px; color: var(--text-3); margin-top: 2px; }
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.stat { background: var(--bg-soft); border-radius: var(--r-sm); padding: 14px; }
+.stat .k { font-size: 13px; color: var(--text-2); }
+.stat .v { font-size: 24px; font-weight: 600; }
+.settings-row {
+  display: flex; justify-content: space-between; padding: 12px 2px;
+  border-bottom: 0.5px solid var(--border); font-size: 14px;
+}
+.settings-row .arrow { color: var(--text-3); }
