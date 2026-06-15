@@ -3,30 +3,55 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Summit — productivity prototype</title>
+  <!-- Title is set from js/config.js at runtime -->
+  <title>prototype</title>
+
   <link rel="stylesheet" href="css/variables.css" />
   <link rel="stylesheet" href="css/base.css" />
   <link rel="stylesheet" href="css/phone.css" />
-  <link rel="stylesheet" href="css/screens.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/screens/onboarding.css" />
+  <link rel="stylesheet" href="css/screens/home.css" />
+  <link rel="stylesheet" href="css/screens/log.css" />
+  <link rel="stylesheet" href="css/screens/friends.css" />
+  <link rel="stylesheet" href="css/screens/goals.css" />
+  <link rel="stylesheet" href="css/screens/you.css" />
 </head>
 <body>
-  <main class="stage">
-    <!-- The iPhone frame. The screen + tab bar are injected by js/app.js -->
-    <div class="phone" id="phone">
-      <div class="notch"><span></span></div>
-      <div class="statusbar">
-        <span>9:41</span>
-        <span class="statusbar-icons">●●● 5G ▮▮▮</span>
-      </div>
-      <section class="screen" id="screen"></section>
-      <nav class="tabbar" id="tabbar"></nav>
-    </div>
-  </main>
+  <div class="phone" id="phone">
+    <div class="notch"><span></span></div>
+    <div class="statusbar"><span>9:41</span><span class="icons">●●● 5G ▮▮▮</span></div>
 
-  <!-- Loaded in order: data, then stats helpers, then screen renderers, then app -->
+    <section class="screen" id="screen"></section>
+
+    <button class="fab" id="fab" title="Log a reflection" hidden>＋</button>
+    <nav class="tabbar" id="tabbar" hidden></nav>
+
+    <div class="overlay" id="overlay"></div>
+    <div class="sheet" id="sheet"></div>
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <!-- Load order: config → storage → data → state → dates → stats
+       → components → screens → features → app (last) -->
+  <script src="js/config.js"></script>
+  <script src="js/storage.js"></script>
   <script src="js/data.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/dates.js"></script>
   <script src="js/stats.js"></script>
-  <script src="js/screens.js"></script>
+  <script src="js/components/toast.js"></script>
+  <script src="js/components/sheet.js"></script>
+  <script src="js/components/mountain.js"></script>
+  <script src="js/screens/onboarding.js"></script>
+  <script src="js/screens/home.js"></script>
+  <script src="js/screens/log.js"></script>
+  <script src="js/screens/friends.js"></script>
+  <script src="js/screens/goals.js"></script>
+  <script src="js/screens/you.js"></script>
+  <script src="js/features/projects.js"></script>
+  <script src="js/features/reflections.js"></script>
+  <script src="js/features/reorder.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

@@ -1,0 +1,6 @@
+/* onboarding — first-run setup */
+.onboard { padding: 40px 8px 20px; }
+.logo { font-size: 12px; font-weight: 800; letter-spacing: 3.5px; color: var(--brand); }
+.logo.xl { font-size: 22px; letter-spacing: 6px; text-align: center; display: block; }
+.onboard-tag { text-align: center; font-size: 13px; color: var(--text-3); margin: 6px 0 26px; }
+.onboard-note { font-size: 11.5px; color: var(--text-3); text-align: center; margin-top: 16px; line-height: 1.5; }

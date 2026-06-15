@@ -1,8 +1,9 @@
 /* ===============================================================
-   app.js — wires everything together: builds the tab bar,
-   renders the active screen, handles taps.
+   app.js — controller. Loads LAST.
+   Boot order: hydrate saved data → apply theme → set page title
+   from config → render (onboarding if no user yet).
    =============================================================== */
-window.SUMMIT = window.SUMMIT || {};
+window.APP = window.APP || {};
 
 (function () {
   const TABS = [
@@ -13,47 +14,52 @@ window.SUMMIT = window.SUMMIT || {};
     { id: "you",    glyph: "☻", label: "You" },
   ];
 
-  let current = "home";
-
-  function renderTabs() {
-    const bar = document.getElementById("tabbar");
-    bar.innerHTML = TABS.map((t) =>
-      `<button class="tab ${t.id === current ? "active" : ""}" data-screen="${t.id}">
-        <span class="glyph">${t.glyph}</span>${t.label}</button>`
-    ).join("");
-  }
-
-  function renderScreen() {
-    document.getElementById("screen").innerHTML = SUMMIT.screens[current]();
-  }
-
-  SUMMIT.app = {
+  APP.app = {
     go(id) {
-      current = id;
-      renderTabs();
-      renderScreen();
+      APP.state.tab = id;
+      this.render();
     },
 
-    // Show the log detail for a tapped cell.
-    detail(pi, di) {
-      const el = document.getElementById("detail");
-      if (el) el.innerHTML = SUMMIT.screens.detailHtml(pi, di);
-    },
+    render() {
+      const onboarded = !!APP.data.user;
 
-    // Placeholder hook for "ask Claude" style buttons in a real build.
-    ask(question) {
-      alert(question);
+      APP.$("tabbar").hidden = !onboarded;
+      APP.$("fab").hidden = !onboarded;
+
+      if (!onboarded) {
+        APP.$("screen").innerHTML = APP.screens.onboarding();
+        return;
+      }
+
+      const tab = APP.state.tab;
+      APP.$("tabbar").innerHTML = TABS.map((t) =>
+        `<button class="tab ${t.id === tab ? "active" : ""}" data-t="${t.id}">
+          <span class="glyph">${t.glyph}</span>${t.label}</button>`).join("");
+
+      APP.$("screen").innerHTML = APP.screens[tab]();
+      APP.$("screen").scrollTop = 0;
+
+      if (tab === "home" && APP.data.projects.length) {
+        requestAnimationFrame(() =>
+          APP.mountain.place(APP.stats.pct(APP.stats.week())));
+      }
+      if (tab === "goals") APP.features.wireDrag();
     },
 
     init() {
-      renderTabs();
-      renderScreen();
-      document.getElementById("tabbar").addEventListener("click", (e) => {
-        const btn = e.target.closest(".tab");
-        if (btn) SUMMIT.app.go(btn.dataset.screen);
+      APP.data.hydrate(APP.storage.load());
+      document.title = APP.config.name + " — prototype";
+      APP.$("phone").dataset.theme = APP.state.theme;
+
+      APP.$("tabbar").addEventListener("click", (e) => {
+        const b = e.target.closest(".tab");
+        if (b) APP.app.go(b.dataset.t);
       });
+      APP.$("fab").addEventListener("click", APP.actions.openReflection);
+      APP.$("overlay").addEventListener("click", APP.sheet.close);
+      this.render();
     },
   };
 
-  document.addEventListener("DOMContentLoaded", SUMMIT.app.init);
+  document.addEventListener("DOMContentLoaded", () => APP.app.init());
 })();
