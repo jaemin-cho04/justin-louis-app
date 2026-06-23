@@ -11,7 +11,7 @@ APP.screens.log = function () {
   const D = APP.data, days = APP.dates.week(), ti = APP.dates.todayIndex;
 
   if (!D.projects.length) {
-    return `<h2 style="font-size:18px">Daily log</h2>
+    return `<h2>Daily log</h2>
       <div class="card empty-card">
         <div class="empty-emoji">▦</div>
         <p class="empty-title">No rows yet</p>
@@ -36,7 +36,7 @@ APP.screens.log = function () {
   ).join("");
 
   return `
-    <h2 style="font-size:18px">Daily log</h2>
+    <h2>Daily log</h2>
     <p class="sub">Tap a cell to log or edit that day</p>
     ${head}${rows}
     <div class="legend">

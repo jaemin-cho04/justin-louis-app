@@ -8,6 +8,7 @@ APP.state = {
   tab: "home",
   breakDay: false,
   reflFilter: null,
+  notif: { encouragement: true, nostalgia: true },
 };
 
 APP.$ = (id) => document.getElementById(id);

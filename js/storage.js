@@ -22,6 +22,7 @@ APP.storage = {
         friends: APP.data.friends,
         reflections: APP.data.reflections,
         theme: APP.state.theme,
+        notif: APP.state.notif,
       }));
     } catch (e) { /* storage unavailable — app still works, just won't persist */ }
   },

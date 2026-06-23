@@ -12,7 +12,7 @@ APP.screens.goals = function () {
   const addBtn = `<button class="chip block" onclick="APP.actions.openNewProject()">＋ New project</button>`;
 
   if (!P.length) {
-    return `<h2 style="font-size:18px">Goals</h2>
+    return `<h2>Goals</h2>
       <div class="card empty-card">
         <div class="empty-emoji">◎</div>
         <p class="empty-title">Nothing here yet</p>
@@ -21,14 +21,17 @@ APP.screens.goals = function () {
       </div>` + addBtn;
   }
 
-  return `<h2 style="font-size:18px">Goals</h2>
-    <p class="sub">Private until you choose to share · drag ≡ to set priority</p>
+  const visIcon = { private: "🔒", friends: "👥", public: "🌐" };
+
+  return `<h2>Goals</h2>
+    <p class="sub">Tap a project to edit · drag ≡ to set priority</p>
     <div id="goal-list">` +
     P.map((p, i) =>
       `<div class="goal-row" data-i="${i}">
         <span class="prio">${i + 1}</span>
-        <span class="goal-name">${p.icon} ${APP.esc(p.name)}</span>
-        <span class="tag">${p.type}</span>
+        <span class="goal-name" onclick="APP.actions.openEditProject(${i})">${p.icon} ${APP.esc(p.name)}</span>
+        <span class="tag">${visIcon[p.visibility || "private"]} ${p.visibility || "private"}</span>
+        ${p.critique_enabled ? `<span class="tag">💬</span>` : ""}
         <span class="handle" data-handle="1">≡</span>
       </div>`).join("") +
     `</div>` + addBtn;

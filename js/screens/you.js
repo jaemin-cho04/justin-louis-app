@@ -52,8 +52,13 @@ APP.screens.you = function () {
     <div class="settings-row"><span>Appearance — ${St.theme} mode</span>
       <div class="switch ${St.theme === "dark" ? "on" : ""}" onclick="APP.actions.toggleTheme()"></div>
     </div>
-    ${["Edit profile", "Manage friends", "Notifications", "Privacy"].map((s) =>
-      `<div class="settings-row"><span>${s}</span><span class="arrow">›</span></div>`).join("")}
+    ${[
+      ["Edit profile", "APP.actions.openEditProfile()"],
+      ["Manage friends", "APP.actions.openManageFriends()"],
+      ["Notifications", "APP.actions.openNotifications()"],
+      ["Privacy", "APP.actions.openPrivacy()"],
+    ].map(([s, fn]) =>
+      `<div class="settings-row" style="cursor:pointer" onclick="${fn}"><span>${s}</span><span class="arrow">›</span></div>`).join("")}
     <div class="settings-row danger" onclick="APP.actions.resetAll()">
       <span>Reset prototype data</span><span class="arrow">↺</span></div>
   `;
