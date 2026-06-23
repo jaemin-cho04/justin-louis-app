@@ -19,6 +19,7 @@
 .goal-name {
   flex: 1; font-size: 13.5px; font-weight: 600; color: var(--text-1);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  cursor: pointer;
 }
 
 .tag {

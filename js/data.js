@@ -22,6 +22,7 @@ APP.data = {
     this.friends = saved.friends || [];
     this.reflections = saved.reflections || [];
     if (saved.theme) APP.state.theme = saved.theme;
+    if (saved.notif) APP.state.notif = saved.notif;
   },
 };
 
