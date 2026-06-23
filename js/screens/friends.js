@@ -15,7 +15,7 @@ APP.screens.social = function () {
   const addBtn = `<button class="chip block" onclick="APP.actions.openAddFriend()">＋ Add a friend (demo)</button>`;
 
   if (!F.length) {
-    return `<h2 style="font-size:18px">Friends</h2>
+    return `<h2>Friends</h2>
       <div class="card empty-card">
         <div class="empty-emoji">◍</div>
         <p class="empty-title">No friends yet</p>
@@ -25,7 +25,7 @@ APP.screens.social = function () {
       </div>` + addBtn;
   }
 
-  return `<h2 style="font-size:18px">Friends</h2>
+  return `<h2>Friends</h2>
     <p class="sub">Everyone's % is against <b>their own</b> goals — there's no leaderboard here.</p>` +
     F.map((f, fi) => {
       const comments = f.comments.length

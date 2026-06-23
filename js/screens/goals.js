@@ -12,7 +12,7 @@ APP.screens.goals = function () {
   const addBtn = `<button class="chip block" onclick="APP.actions.openNewProject()">＋ New project</button>`;
 
   if (!P.length) {
-    return `<h2 style="font-size:18px">Goals</h2>
+    return `<h2>Goals</h2>
       <div class="card empty-card">
         <div class="empty-emoji">◎</div>
         <p class="empty-title">Nothing here yet</p>
@@ -21,7 +21,7 @@ APP.screens.goals = function () {
       </div>` + addBtn;
   }
 
-  return `<h2 style="font-size:18px">Goals</h2>
+  return `<h2>Goals</h2>
     <p class="sub">Private until you choose to share · drag ≡ to set priority</p>
     <div id="goal-list">` +
     P.map((p, i) =>
