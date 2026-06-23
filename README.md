@@ -2,16 +2,26 @@
 
 A runnable mobile-style prototype for a social productivity app. No installation, no build step — pure HTML, CSS, and JavaScript.
 
-## How to run
+## How to run and interact with the app
 
-**Option 1 — just open it:**
-Double-click `index.html`. Works in any modern browser.
+This prototype is already runnable as a browser app. You can interact with it locally in any modern browser.
 
-**Option 2 — local server (if the browser is strict about local files):**
+**Option 1 — npm start:**
+```bash
+npm start
 ```
+Then open `http://localhost:8000`.
+
+**Option 2 — Python local server:**
+```bash
 python3 -m http.server 8000
 ```
 Then open `http://localhost:8000`.
+
+**Option 3 — just open it:**
+Double-click `index.html`. Works in any modern browser, though the local server options above are more reliable.
+
+If you are using a cloud editor or Codespaces-like environment, start the server with `npm start`, open/forward port `8000`, and use the forwarded URL to interact with the app.
 
 ## What you can do
 
