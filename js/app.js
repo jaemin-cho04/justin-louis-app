@@ -41,7 +41,7 @@ window.APP = window.APP || {};
 
       if (tab === "home" && APP.data.projects.length) {
         requestAnimationFrame(() =>
-          APP.mountain.place(APP.stats.pct(APP.stats.week())));
+          APP.progressVisual.place(APP.stats.pct(APP.stats.week())));
       }
       if (tab === "goals") APP.features.wireDrag();
     },

@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "tmp/test-build",
+    "module": "Node16",
+    "moduleResolution": "node16",
+    "noEmit": false
+  },
+  "include": [
+    "scripts/progress-tests.ts",
+    "src/config/**/*.ts",
+    "src/config/**/*.json",
+    "src/domain/**/*.ts",
+    "src/shared/theme/**/*.ts",
+    "src/shared/utils/**/*.ts"
+  ]
+}

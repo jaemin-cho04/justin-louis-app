@@ -24,22 +24,22 @@ APP.screens.home = function () {
   if (!D.projects.length) {
     return head + `
       <div class="card empty-card">
-        <div class="empty-emoji">🏔️</div>
-        <p class="empty-title">Your mountain is waiting</p>
+        <div class="empty-emoji">＋</div>
+        <p class="empty-title">Your first project is waiting</p>
         <p class="empty-sub">Add your first project or habit and the bars,
-        the grid, and the climb all come to life.</p>
+        the grid, and the progress views come to life.</p>
         <button class="save-btn" onclick="APP.actions.openNewProject()">＋ Create your first project</button>
       </div>`;
   }
 
   return head +
-    (St.breakDay ? `<div class="rest-banner">☕ Break day — nothing is owed today. The mountain will wait.</div>` : "") + `
-    <div class="card mountain-card">
-      <div class="mtn-caption">
+    (St.breakDay ? `<div class="rest-banner">Rest day is on — nothing is owed today.</div>` : "") + `
+    <div class="card progress-visual-card">
+      <div class="progress-visual-caption">
         <div class="big">${wp}%</div>
-        <div class="small">of this week's climb</div>
+        <div class="small">of this week's progress</div>
       </div>
-      ${APP.mountain.svg()}
+      ${APP.progressVisual.svg()}
     </div>
 
     <div class="card">
@@ -63,16 +63,16 @@ APP.screens.home = function () {
       <div class="row-flex"><span class="label">${APP.esc(APP.data.user.term)}</span>
         <span class="value muted">${term}%</span></div>
       <div class="seg"><i class="sd" style="width:${term}%"></i></div>
-      <p class="note">🏔️ of the way to ${APP.esc(APP.data.user.termEnd)}</p>
+      <p class="note">Progress toward ${APP.esc(APP.data.user.termEnd)}</p>
     </div>` : ""}
 
     <button class="chip block ${St.breakDay ? "on" : ""}" onclick="APP.actions.toggleBreak()">
-      ${St.breakDay ? "✓ Break day on — tap to resume" : "☕ Take a break day"}
+      ${St.breakDay ? "Rest day on — tap to resume" : "Take a rest day"}
     </button>`;
 };
 
 APP.actions.toggleBreak = function () {
   APP.state.breakDay = !APP.state.breakDay;
   APP.app.render();
-  APP.toast(APP.state.breakDay ? "☕ Break day — guilt-free" : "Back on the mountain 🏔️");
+  APP.toast(APP.state.breakDay ? "Rest day is on" : "Back to your plan");
 };

@@ -1,0 +1,40 @@
+import type { ReactNode } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+import { colors } from "../theme/colors";
+
+type Props = {
+  children: ReactNode;
+  scroll?: boolean;
+};
+
+export function Screen({ children, scroll = true }: Props) {
+  if (!scroll) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.content}>{children}</View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {children}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: colors.surfaceSoft
+  },
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 110
+  }
+});

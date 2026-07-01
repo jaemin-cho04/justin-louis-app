@@ -34,7 +34,7 @@ APP.screens.onboarding = function () {
         <input id="ob-end" type="date" />
       </label>
 
-      <button class="save-btn" onclick="APP.actions.completeOnboarding()">Start climbing</button>
+      <button class="save-btn" onclick="APP.actions.completeOnboarding()">Start tracking</button>
       <p class="onboard-note">Everything stays on this device. You add projects, friends,
       and logs yourself — nothing is pre-filled.</p>
     </div>`;

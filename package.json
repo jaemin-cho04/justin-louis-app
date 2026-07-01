@@ -1,5 +1,41 @@
 {
+<<<<<<< HEAD
   "scripts": {
     "start": "python3 -m http.server 8000"
+=======
+  "name": "mobile-app-tbd",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "ios": "expo start --ios",
+    "android": "expo start --android",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "check:lines": "node scripts/check-file-lines.mjs",
+    "check:brand": "node scripts/check-brand-config.mjs",
+    "test:progress": "tsc -p tsconfig.test.json && node tmp/test-build/scripts/progress-tests.js",
+    "test": "npm run check:lines && npm run check:brand && npm run test:progress",
+    "verify": "npm run typecheck && npm run test"
+  },
+  "dependencies": {
+    "@expo/metro-runtime": "~6.1.2",
+    "@expo/vector-icons": "^15.0.3",
+    "expo": "~54.0.0",
+    "expo-asset": "~12.0.13",
+    "expo-sqlite": "~16.0.10",
+    "expo-status-bar": "~3.0.9",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-web": "^0.21.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.10",
+    "babel-preset-expo": "~54.0.11",
+    "typescript": "~5.9.2"
+>>>>>>> 8a15908 (update with codex)
   }
 }

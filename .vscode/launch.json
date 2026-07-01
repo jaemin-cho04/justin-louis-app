@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Expo Go",
+      "cwd": "${workspaceFolder}",
+      "type": "reactnative",
+      "request": "launch",
+      "platform": "exponent",
+      "expoHostType": "lan"
+    },
+    {
+      "name": "Attach to React Native",
+      "cwd": "${workspaceFolder}",
+      "type": "reactnative",
+      "request": "attach"
+    }
+  ]
+}

@@ -17,8 +17,7 @@
   --done: #4f9ef2; --try: #f0a432; --miss: #e85655; --skip: #5b5968;
   --cell-empty: rgba(255, 255, 255, 0.05);
   --sheet: #16141f; --track: rgba(255, 255, 255, 0.08);
-  --mtn-a: #3b2d6e; --mtn-b: #241c45; --mtn-c: #171230;
-  --sky-a: #1b1535; --sky-b: #0d0c13;
+  --visual-a: #1b1535; --visual-b: #0d0c13; --visual-c: #3b2d6e; --visual-d: #241c45;
 }
 
 .phone[data-theme="light"] {
@@ -35,6 +34,5 @@
   --done: #3b8ce0; --try: #e2941f; --miss: #dd4b4a; --skip: #a5a2b3;
   --cell-empty: rgba(28, 22, 54, 0.05);
   --sheet: #ffffff; --track: rgba(28, 22, 54, 0.08);
-  --mtn-a: #c9b8f5; --mtn-b: #a98fe8; --mtn-c: #8a6cd6;
-  --sky-a: #ece5fb; --sky-b: #f4f2fa;
+  --visual-a: #ece5fb; --visual-b: #f4f2fa; --visual-c: #c9b8f5; --visual-d: #a98fe8;
 }
