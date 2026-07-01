@@ -2,30 +2,6 @@
 
 A mobile-first social productivity app prototype built with Expo, React Native, and TypeScript.
 
-<<<<<<< HEAD
-## How to run and interact with the app
-
-This prototype is already runnable as a browser app. You can interact with it locally in any modern browser.
-
-**Option 1 — npm start:**
-```bash
-npm start
-```
-Then open `http://localhost:8000`.
-
-**Option 2 — Python local server:**
-```bash
-python3 -m http.server 8000
-```
-Then open `http://localhost:8000`.
-
-**Option 3 — just open it:**
-Double-click `index.html`. Works in any modern browser, though the local server options above are more reliable.
-
-If you are using a cloud editor or Codespaces-like environment, start the server with `npm start`, open/forward port `8000`, and use the forwarded URL to interact with the app.
-
-## What you can do
-=======
 The final product name is intentionally undecided. Runtime copy, Expo metadata, bundle IDs, URL scheme, storage namespace, and brand colors are centralized in `src/config/brand.json` so the name can be replaced later without searching the whole codebase.
 
 ## Product Spine
@@ -40,7 +16,6 @@ The final product name is intentionally undecided. Runtime copy, Expo metadata, 
 - **Friends** show progress relative to their own goals, with critique opt-in.
 
 ## Current Screens
->>>>>>> 8a15908 (update with codex)
 
 - **Onboarding** - name, handle, term label.
 - **Home** - daily progress, next scheduled items, rest-day toggle, date navigation, log and reflection entry.
@@ -131,6 +106,14 @@ python3 -m http.server 4173 --bind 127.0.0.1
 ```
 
 Then open `http://127.0.0.1:4173/`.
+
+Static HTML prototype:
+
+```bash
+python3 -m http.server 8000
+```
+
+Then open `http://localhost:8000`.
 
 Verify:
 

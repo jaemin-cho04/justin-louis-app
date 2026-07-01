@@ -1,8 +1,4 @@
 {
-<<<<<<< HEAD
-  "scripts": {
-    "start": "python3 -m http.server 8000"
-=======
   "name": "mobile-app-tbd",
   "version": "0.1.0",
   "private": true,
@@ -36,6 +32,5 @@
     "@types/react": "~19.1.10",
     "babel-preset-expo": "~54.0.11",
     "typescript": "~5.9.2"
->>>>>>> 8a15908 (update with codex)
   }
 }
