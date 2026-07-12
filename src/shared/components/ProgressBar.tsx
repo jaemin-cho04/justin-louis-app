@@ -9,12 +9,12 @@ type Props = {
 };
 
 const segmentColor = {
-  done: colors.purple,
-  attempted: colors.amber,
-  missed: colors.coral,
+  done: colors.mint,
+  attempted: colors.purple,
+  missed: colors.inactive,
   skipped: colors.stroke,
   deferred: colors.sky,
-  open: "#D9D3E5"
+  open: colors.slate
 };
 
 export function ProgressBar({ summary, height = 12 }: Props) {
@@ -44,8 +44,8 @@ export function ProgressBar({ summary, height = 12 }: Props) {
 
 const styles = StyleSheet.create({
   track: {
-    backgroundColor: colors.surfaceSoft,
-    borderRadius: 999,
+    backgroundColor: colors.stroke,
+    borderRadius: 3,
     flexDirection: "row",
     overflow: "hidden"
   },

@@ -4,11 +4,17 @@ import { loadAppData, resetAppData, saveAppData } from "../storage/appDataReposi
 import { scheduledItems } from "../../domain/selectors/progress";
 import { todayKey } from "../../shared/utils/dates";
 import { projectColors } from "../../shared/theme/colors";
-import type { AppData, LogStatus, Project, UserProfile, Visibility } from "../../domain/model/types";
+import type { AppData, LogStatus, Milestone, Project, UserProfile, Visibility } from "../../domain/model/types";
 
 type DraftProject = {
   title: string;
   description: string;
+  goalType?: "habit" | "project";
+  cadence?: "Daily" | "Weekly" | "Monthly";
+  tracking?: string;
+  target?: string;
+  duration?: string;
+  milestones?: Array<Omit<Milestone, "id">>;
 };
 
 const makeId = (prefix: string) => `${prefix}-${Date.now()}`;
@@ -141,7 +147,18 @@ export function useAppStore() {
             visibility: "private",
             priority: current.projects.length + 1,
             isShared: false,
-            termLabel: current.currentUser.profile.termLabel
+            termLabel: current.currentUser.profile.termLabel,
+            goalType: draft.goalType ?? "project",
+            cadence: draft.cadence,
+            tracking: draft.tracking?.trim(),
+            target: draft.target?.trim(),
+            duration: draft.duration?.trim(),
+            milestones: draft.milestones?.map((milestone, index) => ({
+              ...milestone,
+              id: makeId(`milestone-${index}`),
+              title: milestone.title.trim(),
+              timing: milestone.timing.trim()
+            }))
           };
 
           return {
@@ -189,6 +206,61 @@ export function useAppStore() {
               lastSignal: "Ready for quiet accountability"
             }
           ]
+        }));
+      },
+      addComment(targetId: string, comment: string) {
+        const cleanComment = comment.trim();
+
+        if (!cleanComment) {
+          return;
+        }
+
+        update((current) => ({
+          ...current,
+          reactions: [
+            ...current.reactions,
+            {
+              id: makeId("comment"),
+              authorId: current.currentUser.id,
+              targetId,
+              targetType: "log",
+              type: "cheer",
+              comment: cleanComment,
+              createdAt: new Date().toISOString()
+            }
+          ]
+        }));
+      },
+      updateLogNote(logId: string, note: string) {
+        update((current) => ({
+          ...current,
+          logs: current.logs.map((entry) =>
+            entry.id === logId ? { ...entry, note: note.trim() } : entry
+          )
+        }));
+      },
+      updateProfile(profile: Partial<UserProfile>) {
+        update((current) => ({
+          ...current,
+          currentUser: {
+            ...current.currentUser,
+            profile: { ...current.currentUser.profile, ...profile }
+          }
+        }));
+      },
+      setNotificationPreference(
+        key: keyof AppData["currentUser"]["notificationPreferences"],
+        enabled: boolean
+      ) {
+        update((current) => ({
+          ...current,
+          currentUser: {
+            ...current.currentUser,
+            notificationPreferences: {
+              ...current.currentUser.notificationPreferences,
+              [key]: enabled
+            }
+          }
         }));
       },
       async reset() {

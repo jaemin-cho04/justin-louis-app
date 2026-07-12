@@ -1,4 +1,4 @@
-export type AppTab = "home" | "log" | "friends" | "goals" | "you";
+export type AppTab = "home" | "goals" | "friends" | "archives" | "you";
 
 export type WorkItemKind = "task" | "habit";
 
@@ -57,6 +57,20 @@ export type Project = {
   isShared: boolean;
   termLabel?: string;
   archivedAt?: string;
+  goalType?: "habit" | "project";
+  cadence?: "Daily" | "Weekly" | "Monthly";
+  tracking?: string;
+  target?: string;
+  duration?: string;
+  milestones?: Milestone[];
+};
+
+export type Milestone = {
+  id: string;
+  title: string;
+  timing: string;
+  completedAt?: string;
+  note?: string;
 };
 
 export type Membership = {

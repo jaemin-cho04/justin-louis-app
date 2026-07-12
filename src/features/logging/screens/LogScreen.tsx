@@ -5,6 +5,7 @@ import { ProgressBar } from "../../../shared/components/ProgressBar";
 import { Screen } from "../../../shared/components/Screen";
 import { logForItem, scheduledItems, summarizeDay } from "../../../domain/selectors/progress";
 import { colors } from "../../../shared/theme/colors";
+import { DraftStatusBar, IconGlyph } from "../../../shared/components/DraftUI";
 import type { AppData, LogStatus } from "../../../domain/model/types";
 
 type Props = {
@@ -12,6 +13,7 @@ type Props = {
   selectedDate: string;
   onDateChange: (date: string) => void;
   onLog: (itemId: string, status: LogStatus) => void;
+  onClose?: () => void;
 };
 
 const statusButtons: Array<{ status: LogStatus; label: string; color: string }> = [
@@ -22,13 +24,17 @@ const statusButtons: Array<{ status: LogStatus; label: string; color: string }> 
   { status: "deferred", label: "Defer", color: colors.sky }
 ];
 
-export function LogScreen({ data, selectedDate, onDateChange, onLog }: Props) {
+export function LogScreen({ data, selectedDate, onDateChange, onLog, onClose }: Props) {
   const items = scheduledItems(data, selectedDate);
   const summary = summarizeDay(data, selectedDate);
 
   return (
     <Screen>
-      <Text style={styles.title}>Daily log</Text>
+      <DraftStatusBar />
+      <View style={styles.titleRow}>
+        {onClose && <Pressable accessibilityLabel="Close progress log" onPress={onClose}><IconGlyph name="arrow-back" size={19} /></Pressable>}
+        <Text style={styles.title}>Progress Log</Text>
+      </View>
       <Text style={styles.subtitle}>Retroactive logging is allowed. You stay in control.</Text>
       <DateSwitcher date={selectedDate} onChange={onDateChange} />
 
@@ -88,9 +94,14 @@ export function LogScreen({ data, selectedDate, onDateChange, onLog }: Props) {
 }
 
 const styles = StyleSheet.create({
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12
+  },
   title: {
     color: colors.ink,
-    fontSize: 30,
+    fontSize: 22,
     fontWeight: "900"
   },
   subtitle: {

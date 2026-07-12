@@ -33,8 +33,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSoft
   },
   content: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     paddingTop: 12,
-    paddingBottom: 110
+    paddingBottom: 92
   }
 });

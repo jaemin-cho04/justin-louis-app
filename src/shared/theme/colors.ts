@@ -1,20 +1,23 @@
 import { brandConfig } from "../../config/brand";
 
 export const colors = {
-  ink: "#17151F",
-  inkMuted: "#686173",
-  surface: "#FFFFFF",
-  surfaceSoft: "#F6F4FA",
-  stroke: "#E5DFF0",
+  ink: "#F2F2F4",
+  inkMuted: "#8A8A93",
+  surface: "#141416",
+  surfaceSoft: "#0A0A0C",
+  stroke: "#232327",
   purple: brandConfig.primaryColor,
-  purpleDeep: "#4C1D95",
+  purpleDeep: "#241933",
   lavender: brandConfig.secondaryColor,
-  mint: "#30C48D",
+  mint: "#1DE87E",
   amber: "#F5BA41",
-  coral: "#E45B66",
+  coral: "#5A5A61",
   sky: "#3B82F6",
-  slate: "#2F3340",
-  darkSurface: "#101018"
+  slate: "#2C2C31",
+  darkSurface: "#0A0A0C",
+  whiteMuted: "#CFCFD4",
+  inactive: "#5A5A61",
+  pageShell: "#DADADD"
 };
 
-export const projectColors = [brandConfig.primaryColor, "#30C48D", "#3B82F6", "#F5BA41", "#E45B66"];
+export const projectColors = [brandConfig.primaryColor, "#1DE87E", "#CFCFD4", "#8A8A93", "#5A5A61"];

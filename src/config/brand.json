@@ -1,17 +1,17 @@
 {
   "appDisplayName": "",
-  "fallbackDisplayName": "Brand Name TBD",
-  "appTagline": "quiet accountability with close friends",
+  "fallbackDisplayName": "Progress",
+  "appTagline": "track your goals with close friends",
   "appSlug": "mobile-app-tbd",
   "urlScheme": "mobileapptbd",
   "iosBundleId": "com.justinlouis.mobileapptbd",
   "androidPackage": "com.justinlouis.mobileapptbd",
   "storageNamespace": "mobile-app-tbd-state-v1",
-  "brandKicker": "BRAND TBD",
-  "primaryColor": "#7C3AED",
-  "secondaryColor": "#EEE7FF",
+  "brandKicker": "PROGRESS",
+  "primaryColor": "#A855F7",
+  "secondaryColor": "#241933",
   "icon": {
-    "backgroundColor": "#7C3AED",
+    "backgroundColor": "#A855F7",
     "foregroundHint": "progress-mark"
   }
 }

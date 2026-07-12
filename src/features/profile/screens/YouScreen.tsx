@@ -1,185 +1,308 @@
-import { StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
-import { AppButton } from "../../../shared/components/AppButton";
+import {
+  Avatar,
+  DraftCard,
+  DraftStatusBar,
+  IconGlyph
+} from "../../../shared/components/DraftUI";
 import { Screen } from "../../../shared/components/Screen";
-import { summarizeTerm, summarizeWeek } from "../../../domain/selectors/progress";
 import { colors } from "../../../shared/theme/colors";
-import type { AppData } from "../../../domain/model/types";
+import type { AppData, NotificationPreferences, UserProfile } from "../../../domain/model/types";
 
 type Props = {
   data: AppData;
   onReset: () => void;
+  onUpdateProfile: (profile: Partial<UserProfile>) => void;
+  onSetNotificationPreference: (key: keyof NotificationPreferences, enabled: boolean) => void;
+  onOpenFriends: () => void;
 };
 
-export function YouScreen({ data, onReset }: Props) {
-  const week = summarizeWeek(data);
-  const term = summarizeTerm(data);
-  const latestReflections = data.reflections.slice(0, 4);
+const stats = [
+  { icon: "trending-up-outline" as const, value: "62%", label: "This week", color: colors.purple, bg: colors.purpleDeep },
+  { icon: "flash-outline" as const, value: "56%", label: "Today", color: colors.mint, bg: "#0F2A1C" },
+  { icon: "flag-outline" as const, value: "5", label: "Active projects", color: colors.ink, bg: "#1B1B1E" },
+  { icon: "checkmark-outline" as const, value: "12", label: "Completed all-time", color: colors.mint, bg: "#0F2A1C" }
+];
+
+const settings = [
+  { icon: "create-outline" as const, label: "Edit profile" },
+  { icon: "people-outline" as const, label: "Manage friends" },
+  { icon: "notifications-outline" as const, label: "Notifications" },
+  { icon: "color-palette-outline" as const, label: "Appearance" },
+  { icon: "lock-closed-outline" as const, label: "Privacy" }
+];
+
+export function YouScreen({ data, onReset, onUpdateProfile, onSetNotificationPreference, onOpenFriends }: Props) {
   const profile = data.currentUser.profile;
-  const traitNamesById = new Map(data.traitOptions.map((trait) => [trait.id, trait.name]));
+  const name = profile.name || "Cho";
+  const handle = profile.handle || "@cho";
+  const [panel, setPanel] = useState<"profile" | "notifications" | "appearance" | "privacy" | null>(null);
+  const [draftName, setDraftName] = useState(name);
+  const [draftHandle, setDraftHandle] = useState(handle);
+
+  const openSetting = (label: string) => {
+    if (label === "Manage friends") return onOpenFriends();
+    if (label === "Edit profile") setPanel("profile");
+    if (label === "Notifications") setPanel("notifications");
+    if (label === "Appearance") setPanel("appearance");
+    if (label === "Privacy") setPanel("privacy");
+  };
 
   return (
     <Screen>
-      <Text style={styles.title}>You</Text>
-      <Text style={styles.subtitle}>{profile.handle || "@handle"} - private insights and reflection retrieval.</Text>
-
-      <View style={styles.statsGrid}>
-        <Stat label="Week" value={`${Math.round(week.completion * 100)}%`} />
-        <Stat label="Term tasks" value={`${Math.round(term.completion * 100)}%`} />
-        <Stat label="Reflections" value={`${data.reflections.length}`} />
-        <Stat label="Friends" value={`${data.friends.length}`} />
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Trait library</Text>
-        <View style={styles.traits}>
-          {data.traitOptions.map((trait) => {
-            const count = data.reflections.filter((reflection) =>
-              reflection.traits.includes(trait.id)
-            ).length;
-            return (
-              <View key={trait.id} style={styles.trait}>
-                <Text style={styles.traitText}>{trait.name}</Text>
-                <Text style={styles.traitCount}>{count}</Text>
-              </View>
-            );
-          })}
+      <DraftStatusBar />
+      <View style={styles.profile}>
+        <View style={styles.avatarWrap}>
+          <Avatar label={name.slice(0, 1).toUpperCase()} large />
+          <View style={styles.camera}>
+            <IconGlyph name="camera-outline" size={12} color={colors.surfaceSoft} />
+          </View>
+        </View>
+        <Text style={styles.name}>{name}</Text>
+        <Text style={styles.handle}>{handle}</Text>
+        <View style={styles.friendCount}>
+          <IconGlyph name="people-outline" size={13} color={colors.inactive} />
+          <Text style={styles.friendText}>5 friends</Text>
         </View>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Recent reflections</Text>
-        {latestReflections.length === 0 ? (
-          <Text style={styles.empty}>No reflections yet.</Text>
-        ) : (
-          latestReflections.map((reflection) => (
-            <View key={reflection.id} style={styles.reflection}>
-              <Text style={styles.reflectionDate}>{reflection.date}</Text>
-              <Text style={styles.reflectionText}>{reflection.text}</Text>
-              <Text style={styles.reflectionTraits}>
-                {reflection.traits.map((traitId) => traitNamesById.get(traitId) ?? traitId).join(", ") || "Untagged"}
-              </Text>
+      <View style={styles.statsGrid}>
+        {stats.map((stat) => (
+          <DraftCard key={stat.label} style={styles.statCard}>
+            <View style={[styles.iconBox, { backgroundColor: stat.bg }]}>
+              <IconGlyph name={stat.icon} size={14} color={stat.color} />
             </View>
-          ))
-        )}
+            <Text style={[styles.statValue, { color: stat.color }]}>{stat.value}</Text>
+            <Text style={styles.statLabel}>{stat.label}</Text>
+          </DraftCard>
+        ))}
       </View>
 
-      <AppButton label="Reset demo data" onPress={onReset} tone="ghost" />
+      <DraftCard style={styles.settingsCard}>
+        {settings.map((setting, index) => (
+          <Pressable
+            key={setting.label}
+            accessibilityRole="button"
+            style={[styles.settingRow, index < settings.length - 1 && styles.settingBorder]}
+            onPress={() => openSetting(setting.label)}
+          >
+            <IconGlyph name={setting.icon} size={17} />
+            <Text style={styles.settingLabel}>{setting.label}</Text>
+            <IconGlyph name="chevron-forward" size={15} color={colors.inactive} />
+          </Pressable>
+        ))}
+      </DraftCard>
+
+      <Modal visible={panel !== null} animationType="slide" transparent onRequestClose={() => setPanel(null)}>
+        <Pressable style={styles.backdrop} onPress={() => setPanel(null)} />
+        <View style={styles.modal}>
+          <View style={styles.modalHeader}>
+            <Pressable onPress={() => setPanel(null)}><IconGlyph name="close" size={18} color={colors.inkMuted} /></Pressable>
+            <Text style={styles.modalTitle}>{panel === "profile" ? "Edit profile" : panel === "notifications" ? "Notifications" : panel === "appearance" ? "Appearance" : "Privacy"}</Text>
+            <View style={styles.spacer} />
+          </View>
+
+          {panel === "profile" && <>
+            <Text style={styles.fieldLabel}>NAME</Text>
+            <TextInput value={draftName} onChangeText={setDraftName} style={styles.input} />
+            <Text style={styles.fieldLabel}>HANDLE</Text>
+            <TextInput value={draftHandle} onChangeText={setDraftHandle} autoCapitalize="none" style={styles.input} />
+            <Pressable style={styles.primaryButton} onPress={() => { onUpdateProfile({ name: draftName.trim(), handle: draftHandle.trim() }); setPanel(null); }}><Text style={styles.primaryText}>Save profile</Text></Pressable>
+          </>}
+
+          {panel === "notifications" && (Object.entries(data.currentUser.notificationPreferences) as Array<[keyof NotificationPreferences, boolean]>).map(([key, enabled]) => (
+            <View key={key} style={styles.toggleRow}>
+              <Text style={styles.settingLabel}>{preferenceLabel(key)}</Text>
+              <Switch value={enabled} onValueChange={(value) => onSetNotificationPreference(key, value)} trackColor={{ false: colors.stroke, true: colors.purpleDeep }} thumbColor={enabled ? colors.purple : colors.inactive} />
+            </View>
+          ))}
+
+          {panel === "appearance" && <Text style={styles.panelCopy}>The approved dark Progress theme is active. Additional themes can be added without changing your data.</Text>}
+          {panel === "privacy" && <>
+            <Text style={styles.panelCopy}>Your full summary is private. Friends only see the weekly bar and goals you explicitly share.</Text>
+            <Pressable style={styles.resetButton} onPress={() => { void onReset(); setPanel(null); }}><Text style={styles.resetText}>Reset local app data</Text></Pressable>
+          </>}
+        </View>
+      </Modal>
     </Screen>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.stat}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
+function preferenceLabel(key: keyof NotificationPreferences): string {
+  return ({ weeklyPlanning: "Weekly planning", encouragement: "Encouragement", memories: "Memories", ownTaskReminders: "Task reminders" })[key];
 }
 
 const styles = StyleSheet.create({
-  title: {
+  profile: {
+    alignItems: "center",
+    marginBottom: 18
+  },
+  avatarWrap: {
+    position: "relative",
+    marginBottom: 10
+  },
+  camera: {
+    position: "absolute",
+    right: -2,
+    bottom: -2,
+    width: 24,
+    height: 24,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: colors.surfaceSoft,
+    backgroundColor: colors.purple,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  name: {
     color: colors.ink,
-    fontSize: 30,
+    fontSize: 19,
     fontWeight: "900"
   },
-  subtitle: {
+  handle: {
     color: colors.inkMuted,
-    fontWeight: "700",
-    lineHeight: 20,
-    marginTop: 6,
-    marginBottom: 16
+    fontSize: 12,
+    fontWeight: "600",
+    marginTop: 2
+  },
+  friendCount: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 6
+  },
+  friendText: {
+    color: colors.inkMuted,
+    fontSize: 12,
+    fontWeight: "600"
   },
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
+    gap: 10,
     marginBottom: 14
   },
-  stat: {
-    width: "47%",
-    backgroundColor: colors.surface,
-    borderColor: colors.stroke,
-    borderWidth: 1,
-    borderRadius: 18,
-    padding: 16
+  statCard: {
+    width: "48%",
+    padding: 14
+  },
+  iconBox: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8
   },
   statValue: {
-    color: colors.purple,
-    fontSize: 25,
+    fontSize: 20,
     fontWeight: "900"
   },
   statLabel: {
     color: colors.inkMuted,
-    fontWeight: "800",
-    marginTop: 4
+    fontSize: 10.5,
+    fontWeight: "600",
+    marginTop: 2
   },
-  card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.stroke,
-    borderWidth: 1,
-    borderRadius: 20,
-    padding: 16,
+  settingsCard: {
+    paddingHorizontal: 14,
+    paddingVertical: 2,
     marginBottom: 14
   },
-  sectionTitle: {
-    color: colors.ink,
-    fontSize: 18,
-    fontWeight: "900",
-    marginBottom: 12
-  },
-  traits: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 9
-  },
-  trait: {
+  settingRow: {
+    minHeight: 46,
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
+    gap: 12,
+    paddingHorizontal: 4
+  },
+  settingBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.stroke
+  },
+  settingLabel: {
+    color: colors.ink,
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)"
+  },
+  modal: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    backgroundColor: colors.surfaceSoft,
+    padding: 20,
+    paddingBottom: 34
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 18
+  },
+  modalTitle: {
+    color: colors.ink,
+    fontSize: 16,
+    fontWeight: "900"
+  },
+  spacer: { width: 18 },
+  fieldLabel: {
+    color: colors.inkMuted,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1,
+    marginBottom: 6,
+    marginTop: 10
+  },
+  input: {
+    minHeight: 44,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.stroke,
-    borderRadius: 999,
+    backgroundColor: colors.surface,
+    color: colors.ink,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: colors.surfaceSoft
+    fontSize: 14
   },
-  traitText: {
-    color: colors.ink,
-    fontSize: 12,
-    fontWeight: "800"
+  primaryButton: {
+    minHeight: 44,
+    borderRadius: 12,
+    backgroundColor: colors.purple,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 18
   },
-  traitCount: {
-    color: colors.purple,
-    fontSize: 12,
-    fontWeight: "900"
+  primaryText: { color: colors.surfaceSoft, fontWeight: "900" },
+  toggleRow: {
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderBottomColor: colors.stroke
   },
-  reflection: {
-    borderTopWidth: 1,
-    borderTopColor: colors.stroke,
-    paddingTop: 12,
-    marginTop: 12
+  panelCopy: {
+    color: colors.whiteMuted,
+    fontSize: 14,
+    lineHeight: 21
   },
-  reflectionDate: {
-    color: colors.purple,
-    fontSize: 12,
-    fontWeight: "900"
+  resetButton: {
+    minHeight: 42,
+    borderWidth: 1,
+    borderColor: colors.stroke,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 18
   },
-  reflectionText: {
-    color: colors.ink,
-    fontWeight: "700",
-    lineHeight: 20,
-    marginTop: 5
-  },
-  reflectionTraits: {
-    color: colors.inkMuted,
-    fontSize: 12,
-    fontWeight: "800",
-    marginTop: 7
-  },
-  empty: {
-    color: colors.inkMuted,
-    fontWeight: "700"
-  }
+  resetText: { color: colors.inkMuted, fontWeight: "700" }
 });

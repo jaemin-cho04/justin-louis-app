@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors } from "../theme/colors";
 import type { AppTab } from "../../domain/model/types";
@@ -11,15 +12,17 @@ type Props = {
 
 const tabs: Array<{ id: AppTab; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
   { id: "home", label: "Home", icon: "home" },
-  { id: "log", label: "Log", icon: "checkmark-circle" },
-  { id: "friends", label: "Friends", icon: "people" },
   { id: "goals", label: "Goals", icon: "flag" },
-  { id: "you", label: "You", icon: "person-circle" }
+  { id: "friends", label: "Friends", icon: "people" },
+  { id: "archives", label: "Archives", icon: "archive" },
+  { id: "you", label: "You", icon: "person" }
 ];
 
 export function BottomTabs({ activeTab, onChange }: Props) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 10) }]}>
       {tabs.map((tab) => {
         const isActive = tab.id === activeTab;
         return (
@@ -48,21 +51,17 @@ export function BottomTabs({ activeTab, onChange }: Props) {
 const styles = StyleSheet.create({
   wrap: {
     position: "absolute",
-    left: 16,
-    right: 16,
-    bottom: 18,
-    minHeight: 70,
-    borderRadius: 26,
-    backgroundColor: "rgba(255,255,255,0.94)",
-    borderWidth: 1,
-    borderColor: colors.stroke,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    minHeight: 76,
+    backgroundColor: colors.surfaceSoft,
+    borderTopWidth: 1,
+    borderTopColor: "#1E1E22",
     flexDirection: "row",
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    shadowColor: colors.ink,
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 12 }
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 10
   },
   tab: {
     flex: 1,
@@ -72,12 +71,12 @@ const styles = StyleSheet.create({
     borderRadius: 20
   },
   pressed: {
-    backgroundColor: colors.surfaceSoft
+    backgroundColor: colors.surface
   },
   label: {
-    color: colors.inkMuted,
-    fontSize: 11,
-    fontWeight: "700"
+    color: colors.inactive,
+    fontSize: 10,
+    fontWeight: "600"
   },
   activeLabel: {
     color: colors.purple

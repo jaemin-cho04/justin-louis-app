@@ -1,12 +1,16 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { getBrandKicker } from "../../../config/brand";
-import { AppButton } from "../../../shared/components/AppButton";
-import { DateSwitcher } from "../../../shared/components/DateSwitcher";
-import { ProgressBar } from "../../../shared/components/ProgressBar";
+import {
+  Dot,
+  DraftButton,
+  DraftCard,
+  DraftStatusBar,
+  IconGlyph,
+  SegmentBar
+} from "../../../shared/components/DraftUI";
 import { Screen } from "../../../shared/components/Screen";
-import { isBreakDay, scheduledItems, summarizeDay } from "../../../domain/selectors/progress";
 import { colors } from "../../../shared/theme/colors";
+import { offsetDateKey, parseDateKey, todayKey } from "../../../shared/utils/dates";
 import type { AppData } from "../../../domain/model/types";
 
 type Props = {
@@ -18,233 +22,243 @@ type Props = {
   onOpenReflection: () => void;
 };
 
-export function HomeScreen({
-  data,
-  selectedDate,
-  onDateChange,
-  onToggleBreakDay,
-  onOpenLog,
-  onOpenReflection
-}: Props) {
-  const day = summarizeDay(data, selectedDate);
-  const restDay = isBreakDay(data, selectedDate);
-  const todayItems = scheduledItems(data, selectedDate).slice(0, 2);
+const expandedTask = {
+  icon: "walk-outline" as const,
+  title: "Runs",
+  status: "Done",
+  color: colors.mint,
+  progress: 100,
+  target: "5km run",
+  logged: "5.2km - 27:40",
+  note: "Felt strong on the last km, legs still a bit sore from Saturday."
+};
+
+const compressedTasks = [
+  {
+    icon: "book-outline" as const,
+    title: "Study 2hrs",
+    color: colors.purple,
+    progress: 55,
+    dim: 0.55
+  },
+  {
+    icon: "briefcase-outline" as const,
+    title: "Jobs",
+    color: colors.inactive,
+    progress: 0,
+    dim: 0.3
+  }
+];
+
+export function HomeScreen({ data, selectedDate, onDateChange, onOpenLog }: Props) {
   const profile = data.currentUser.profile;
+  const name = profile.name || "Cho";
+  const today = todayKey();
+  const dayOffset = Math.round((parseDateKey(selectedDate).getTime() - parseDateKey(today).getTime()) / 86400000);
+  const breakdownLabel = dayOffset === 0 ? "TODAY'S BREAKDOWN" : dayOffset === -1 ? "YESTERDAY'S BREAKDOWN" : dayOffset === 1 ? "TOMORROW'S BREAKDOWN" : `${parseDateKey(selectedDate).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }).toUpperCase()} BREAKDOWN`;
 
   return (
     <Screen>
-      <Text style={styles.kicker}>{getBrandKicker()}</Text>
-      <Text style={styles.title}>Hi {profile.name || "there"}</Text>
-      <Text style={styles.subtitle}>{profile.termLabel}</Text>
-      <DateSwitcher date={selectedDate} onChange={onDateChange} />
+      <DraftStatusBar />
+      <View style={styles.heading}>
+        <Text style={styles.title}>Hi {name}</Text>
+        <Text style={styles.subtitle}>Monday, 1 June - {profile.termLabel || "Summer term"}</Text>
+      </View>
 
-      <View style={styles.todayCard}>
-        <RowHeader label="Today" value={`${Math.round(day.completion * 100)}%`} />
-        <ProgressBar summary={day} height={13} />
+      <DraftCard style={styles.hero}>
+        <Text style={styles.eyebrow}>THIS WEEK</Text>
+        <View style={styles.percentRow}>
+          <Text style={styles.percent}>62</Text>
+          <Text style={styles.percentMark}>%</Text>
+        </View>
+        <SegmentBar done={44} attempted={18} open={38} height={14} style={styles.weekBar} />
         <View style={styles.legend}>
-          <Legend color={colors.purple} label="Done" />
-          <Legend color={colors.amber} label="Attempted" />
-          <Legend color={colors.coral} label="Missed" />
-          <Legend color={colors.stroke} label="Deferred" />
+          <Text style={styles.legendText}><Text style={styles.doneText}>18</Text> done</Text>
+          <Text style={styles.legendText}><Text style={styles.purpleText}>6</Text> attempting</Text>
+          <Text style={styles.legendText}><Text style={styles.dimText}>11</Text> remaining</Text>
         </View>
+        <Text style={styles.footnote}>35 tasks scheduled this week</Text>
+      </DraftCard>
 
-        <View style={styles.nextBlock}>
-          <Text style={styles.nextTitle}>Next up</Text>
-          {todayItems.length === 0 ? (
-            <Text style={styles.empty}>Nothing scheduled today.</Text>
-          ) : (
-            todayItems.map((item) => {
-              const project = data.projects.find((candidate) => candidate.id === item.projectId);
-              return (
-                <View key={item.id} style={styles.itemRow}>
-                  <View style={[styles.dot, { backgroundColor: project?.color ?? colors.purple }]} />
-                  <View style={styles.itemCopy}>
-                    <Text style={styles.itemTitle}>{item.title}</Text>
-                    <Text style={styles.itemMeta}>{project?.title} - effort {item.effort}</Text>
-                  </View>
-                </View>
-              );
-            })
-          )}
-        </View>
+      <View style={styles.breakdownHeader}>
+        <Pressable accessibilityRole="button" disabled={dayOffset <= -2} onPress={() => onDateChange(offsetDateKey(selectedDate, -1))}>
+          <IconGlyph name="chevron-back" size={14} color={dayOffset <= -2 ? colors.stroke : colors.inactive} />
+        </Pressable>
+        <Text style={styles.eyebrow}>{breakdownLabel}</Text>
+        <Pressable accessibilityRole="button" disabled={dayOffset >= 2} onPress={() => onDateChange(offsetDateKey(selectedDate, 1))}>
+          <IconGlyph name="chevron-forward" size={14} color={dayOffset >= 2 ? colors.stroke : colors.inactive} />
+        </Pressable>
       </View>
 
-      <View style={styles.actionRow}>
-        <AppButton label="Log today" onPress={onOpenLog} style={styles.actionButton} />
-        <AppButton
-          label="Add reflection"
-          onPress={onOpenReflection}
-          tone="secondary"
-          style={styles.actionButton}
-        />
+      <View style={styles.taskStack}>
+        <DraftCard selected>
+          <View style={styles.taskTop}>
+            <Dot color={expandedTask.color} />
+            <IconGlyph name={expandedTask.icon} size={16} />
+            <Text style={styles.taskTitle}>{expandedTask.title}</Text>
+            <Text style={styles.statusDone}>{expandedTask.status}</Text>
+          </View>
+          <View style={styles.miniTrack}>
+            <View style={[styles.miniFill, { width: `${expandedTask.progress}%`, backgroundColor: expandedTask.color }]} />
+          </View>
+          <View style={styles.details}>
+            <Text style={styles.detailLine}>Target: <Text style={styles.detailValue}>{expandedTask.target}</Text></Text>
+            <Text style={styles.detailLine}>Logged: <Text style={styles.detailValue}>{expandedTask.logged}</Text></Text>
+            <Text style={styles.detailLine}>Note: <Text style={styles.detailNote}>{expandedTask.note}</Text></Text>
+          </View>
+        </DraftCard>
+
+        {compressedTasks.map((task) => (
+          <DraftCard key={task.title} dim={task.dim}>
+            <View style={styles.taskTop}>
+              <Dot color={task.color} />
+              <IconGlyph name={task.icon} size={16} />
+              <Text style={styles.taskTitle}>{task.title}</Text>
+            </View>
+            <View style={styles.miniTrack}>
+              <View style={[styles.miniFill, { width: `${task.progress}%`, backgroundColor: task.color }]} />
+            </View>
+          </DraftCard>
+        ))}
       </View>
 
-      <Pressable
-        accessibilityRole="button"
-        onPress={onToggleBreakDay}
-        style={[styles.restToggle, restDay && styles.restActive]}
-      >
-        <Text style={[styles.restText, restDay && styles.restActiveText]}>
-          {restDay ? "Rest day is on" : "Take a rest day"}
-        </Text>
-      </Pressable>
+      <DraftButton label="Progress Log" onPress={onOpenLog} style={styles.logButton} />
     </Screen>
   );
 }
 
-function RowHeader({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.rowHeader}>
-      <Text style={styles.sectionTitle}>{label}</Text>
-      <Text style={styles.value}>{value}</Text>
-    </View>
-  );
-}
-
-function Legend({ color, label }: { color: string; label: string }) {
-  return (
-    <View style={styles.legendItem}>
-      <View style={[styles.legendDot, { backgroundColor: color }]} />
-      <Text style={styles.legendLabel}>{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  kicker: {
-    color: colors.purple,
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 3,
-    marginBottom: 8
+  heading: {
+    marginBottom: 18
   },
   title: {
     color: colors.ink,
-    fontSize: 30,
-    lineHeight: 35,
+    fontSize: 22,
     fontWeight: "900"
   },
   subtitle: {
     color: colors.inkMuted,
-    fontSize: 14,
-    fontWeight: "700",
-    marginTop: 2,
-    marginBottom: 16
+    fontSize: 13,
+    fontWeight: "600",
+    marginTop: 2
   },
-  todayCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.stroke,
-    marginTop: 14
+  hero: {
+    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 20,
+    marginBottom: 20
   },
-  rowHeader: {
+  eyebrow: {
+    color: colors.inkMuted,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1.5
+  },
+  percentRow: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 11
+    alignItems: "baseline",
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 14
   },
-  sectionTitle: {
+  percent: {
     color: colors.ink,
-    fontSize: 16,
+    fontSize: 44,
+    lineHeight: 46,
     fontWeight: "900"
   },
-  value: {
-    color: colors.purple,
+  percentMark: {
+    color: colors.inkMuted,
+    fontSize: 20,
     fontWeight: "900"
+  },
+  weekBar: {
+    marginBottom: 10
   },
   legend: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginTop: 12
+    gap: 16
   },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6
-  },
-  legendDot: {
-    width: 9,
-    height: 9,
-    borderRadius: 999
-  },
-  legendLabel: {
+  legendText: {
     color: colors.inkMuted,
     fontSize: 12,
-    fontWeight: "700"
+    fontWeight: "600"
   },
-  nextBlock: {
+  doneText: {
+    color: colors.mint,
+    fontWeight: "900"
+  },
+  purpleText: {
+    color: colors.purple,
+    fontWeight: "900"
+  },
+  dimText: {
+    color: colors.inactive,
+    fontWeight: "900"
+  },
+  footnote: {
+    color: colors.inactive,
+    fontSize: 11,
+    fontWeight: "600",
+    marginTop: 8
+  },
+  breakdownHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8
+  },
+  taskStack: {
+    gap: 8,
+    marginBottom: 16
+  },
+  taskTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9
+  },
+  taskTitle: {
+    color: colors.ink,
+    fontSize: 15,
+    fontWeight: "900",
+    flex: 1
+  },
+  statusDone: {
+    color: colors.mint,
+    fontSize: 11,
+    fontWeight: "900"
+  },
+  miniTrack: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.stroke,
+    overflow: "hidden",
+    marginTop: 10
+  },
+  miniFill: {
+    height: "100%"
+  },
+  details: {
     borderTopWidth: 1,
     borderTopColor: colors.stroke,
-    marginTop: 16,
-    paddingTop: 14
+    marginTop: 10,
+    paddingTop: 10,
+    gap: 6
   },
-  nextTitle: {
-    color: colors.ink,
-    fontSize: 14,
-    fontWeight: "900",
-    marginBottom: 4
-  },
-  itemRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingTop: 10
-  },
-  dot: {
-    width: 12,
-    height: 12,
-    borderRadius: 999
-  },
-  itemCopy: {
-    flex: 1
-  },
-  itemTitle: {
-    color: colors.ink,
-    fontWeight: "900",
-    fontSize: 15
-  },
-  itemMeta: {
+  detailLine: {
     color: colors.inkMuted,
     fontSize: 12,
-    fontWeight: "700",
-    marginTop: 2
+    fontWeight: "600"
   },
-  empty: {
-    color: colors.inkMuted,
-    fontWeight: "700",
-    lineHeight: 20
+  detailValue: {
+    color: colors.ink,
+    fontWeight: "900"
   },
-  actionRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 14
+  detailNote: {
+    color: colors.whiteMuted,
+    fontWeight: "600"
   },
-  actionButton: {
-    flex: 1
-  },
-  restToggle: {
-    minHeight: 44,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.stroke,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 12,
-    backgroundColor: colors.surface
-  },
-  restActive: {
-    borderColor: colors.purple,
-    backgroundColor: colors.lavender
-  },
-  restText: {
-    color: colors.inkMuted,
-    fontSize: 14,
-    fontWeight: "800"
-  },
-  restActiveText: {
-    color: colors.purple
+  logButton: {
+    marginBottom: 18
   }
 });

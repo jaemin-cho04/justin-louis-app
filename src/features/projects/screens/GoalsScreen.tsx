@@ -1,122 +1,188 @@
 import { useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
-import { AppButton } from "../../../shared/components/AppButton";
+import {
+  Badge,
+  DraftButton,
+  DraftCard,
+  DraftStatusBar,
+  IconGlyph
+} from "../../../shared/components/DraftUI";
 import { Screen } from "../../../shared/components/Screen";
 import { colors } from "../../../shared/theme/colors";
-import type { AppData, Visibility } from "../../../domain/model/types";
+import type { AppData, Milestone, Visibility } from "../../../domain/model/types";
 
 type Props = {
   data: AppData;
   onMoveProject: (projectId: string, direction: "up" | "down") => void;
   onSetVisibility: (projectId: string, visibility: Visibility) => void;
-  onAddProject: (draft: { title: string; description: string }) => void;
+  onAddProject: (draft: {
+    title: string;
+    description: string;
+    goalType: "habit" | "project";
+    cadence?: "Daily" | "Weekly" | "Monthly";
+    tracking?: string;
+    target?: string;
+    duration?: string;
+    milestones?: Array<Omit<Milestone, "id">>;
+  }) => void;
 };
 
-const visibilityOptions: Array<{ value: Visibility; label: string }> = [
-  { value: "private", label: "Private" },
-  { value: "closeFriends", label: "Close friends" },
-  { value: "sharedCollaborators", label: "Shared" }
-];
+type GoalType = "habit" | "project";
+type MilestoneDraft = { title: string; timing: string };
 
-export function GoalsScreen({ data, onMoveProject, onSetVisibility, onAddProject }: Props) {
+export function GoalsScreen({ data, onAddProject }: Props) {
   const [isAdding, setIsAdding] = useState(false);
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const sortedProjects = [...data.projects].sort((first, second) => first.priority - second.priority);
+  const [goalType, setGoalType] = useState<GoalType>("project");
+  const [cadence, setCadence] = useState<"Daily" | "Weekly" | "Monthly">("Daily");
+  const [tracking, setTracking] = useState("");
+  const [target, setTarget] = useState("");
+  const [duration, setDuration] = useState("");
+  const [milestones, setMilestones] = useState<MilestoneDraft[]>([
+    { title: "", timing: "Week 1" }
+  ]);
 
-  const save = () => {
-    onAddProject({ title, description });
-    setTitle("");
-    setDescription("");
+  const goals = [...data.projects].sort((a, b) => a.priority - b.priority);
+  const habitCount = goals.filter((goal) => goal.goalType === "habit").length;
+  const projectCount = goals.length - habitCount;
+
+  const createDraftGoal = () => {
+    if (!title.trim()) return;
+
+    onAddProject({
+      title,
+      description: goalType === "habit" ? `${cadence} - ${tracking || "habit"}` : `${duration || "Project"} - ${milestones.length} milestones`,
+      goalType,
+      cadence: goalType === "habit" ? cadence : undefined,
+      tracking: goalType === "habit" ? tracking : undefined,
+      target: goalType === "habit" ? target : undefined,
+      duration: goalType === "project" ? duration : undefined,
+      milestones: goalType === "project"
+        ? milestones.filter((item) => item.title.trim()).map((item) => ({ ...item }))
+        : undefined
+    });
     setIsAdding(false);
+    setTitle("");
+    setGoalType("project");
+    setDuration("");
+    setMilestones([{ title: "", timing: "Week 1" }]);
+  };
+
+  const updateMilestone = (index: number, field: keyof MilestoneDraft, value: string) => {
+    setMilestones((current) => current.map((item, itemIndex) =>
+      itemIndex === index ? { ...item, [field]: value } : item
+    ));
   };
 
   return (
     <Screen>
+      <DraftStatusBar />
       <View style={styles.heading}>
-        <View style={styles.headingText}>
+        <View>
           <Text style={styles.title}>Goals</Text>
-          <Text style={styles.subtitle}>Projects contain tasks and habits. Privacy lives here.</Text>
+          <Text style={styles.subtitle}>{habitCount} habits - {projectCount} projects</Text>
         </View>
-        <AppButton label="New" onPress={() => setIsAdding(true)} style={styles.newButton} />
+        <DraftButton label="New goal" icon="add" onPress={() => setIsAdding(true)} />
       </View>
 
-      {sortedProjects.map((project, index) => {
-        const itemCount = data.workItems.filter((item) => item.projectId === project.id).length;
-        return (
-          <View key={project.id} style={styles.card}>
-            <View style={styles.projectTop}>
-              <View style={[styles.colorRail, { backgroundColor: project.color }]} />
-              <View style={styles.projectCopy}>
-                <Text style={styles.projectTitle}>{project.title}</Text>
-                <Text style={styles.description}>{project.description}</Text>
-                <Text style={styles.meta}>{itemCount} items - priority {project.priority}</Text>
-              </View>
-              <View style={styles.moveColumn}>
-                <Pressable
-                  onPress={() => onMoveProject(project.id, "up")}
-                  disabled={index === 0}
-                  style={[styles.moveButton, index === 0 && styles.moveDisabled]}
-                >
-                  <Text style={styles.moveText}>Up</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => onMoveProject(project.id, "down")}
-                  disabled={index === sortedProjects.length - 1}
-                  style={[styles.moveButton, index === sortedProjects.length - 1 && styles.moveDisabled]}
-                >
-                  <Text style={styles.moveText}>Down</Text>
-                </Pressable>
-              </View>
-            </View>
+      <View style={styles.list}>
+        {goals.map((goal) => {
+          const isHabit = goal.goalType === "habit";
+          const completed = goal.milestones?.filter((item) => item.completedAt).length ?? 0;
+          const total = goal.milestones?.length ?? 0;
+          const progress = total ? (completed / total) * 100 : 0;
+          const meta = isHabit
+            ? `${goal.cadence ?? "Daily"} - ${goal.tracking ?? goal.description}`
+            : `${goal.duration ?? goal.termLabel ?? "Project"} - ${completed} of ${total} milestones`;
 
-            <View style={styles.visibilityRow}>
-              {visibilityOptions.map((option) => (
-                <Pressable
-                  key={option.value}
-                  onPress={() => onSetVisibility(project.id, option.value)}
-                  style={[styles.visibility, project.visibility === option.value && styles.visibilityActive]}
-                >
-                  <Text
-                    style={[
-                      styles.visibilityText,
-                      project.visibility === option.value && styles.visibilityTextActive
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                </Pressable>
-              ))}
+          return <DraftCard key={goal.id}>
+            <View style={styles.rowTop}>
+              <IconGlyph name={isHabit ? "repeat-outline" : "flag-outline"} />
+              <View style={styles.copy}>
+                <Text style={styles.rowTitle}>{goal.title}</Text>
+                <Text style={styles.rowMeta}>{meta}</Text>
+              </View>
+              <Badge label={isHabit ? "HABIT" : "PROJECT"} />
+              <IconGlyph name="reorder-three-outline" size={15} color={colors.inactive} />
             </View>
-          </View>
-        );
-      })}
+            {!isHabit && (
+              <View style={styles.projectTrack}>
+                <View style={[styles.projectFill, { width: `${progress}%` }]} />
+              </View>
+            )}
+          </DraftCard>;
+        })}
+      </View>
 
       <Modal visible={isAdding} animationType="slide" transparent onRequestClose={() => setIsAdding(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setIsAdding(false)} />
-        <View style={styles.modal}>
-          <Text style={styles.modalTitle}>New project</Text>
-          <TextInput
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Project title"
-            placeholderTextColor="#948CA2"
-            style={styles.input}
-          />
-          <TextInput
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Short description"
-            placeholderTextColor="#948CA2"
-            style={[styles.input, styles.textArea]}
-            multiline
-          />
-          <AppButton label="Create project" onPress={save} />
-        </View>
+        <Pressable style={styles.backdrop} onPress={() => setIsAdding(false)} />
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.modal}>
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <View style={styles.sheetHeader}>
+            <Pressable accessibilityRole="button" onPress={() => setIsAdding(false)}>
+              <IconGlyph name="close" size={18} color={colors.inkMuted} />
+            </Pressable>
+            <Text style={styles.sheetTitle}>New goal</Text>
+            <View style={styles.headerSpacer} />
+          </View>
+
+          <Label text="TITLE" />
+          <TextInput value={title} onChangeText={setTitle} placeholder="e.g. Research project" placeholderTextColor={colors.inactive} style={styles.input} />
+
+          <Label text="TYPE" />
+          <View style={styles.typeRow}>
+            <Pressable onPress={() => setGoalType("habit")} style={[styles.typeButton, goalType === "habit" && styles.typeActive]}>
+              <Text style={goalType === "habit" ? styles.typeActiveText : styles.typeMuted}>Habit - repeats</Text>
+            </Pressable>
+            <Pressable onPress={() => setGoalType("project")} style={[styles.typeButton, goalType === "project" && styles.typeActive]}>
+              <Text style={goalType === "project" ? styles.typeActiveText : styles.typeMuted}>Project - has an end</Text>
+            </Pressable>
+          </View>
+
+          {goalType === "habit" ? (
+            <>
+              <Label text="HOW OFTEN" />
+              <View style={styles.typeRow}>
+                {(["Daily", "Weekly", "Monthly"] as const).map((value) => (
+                  <Pressable key={value} onPress={() => setCadence(value)} style={[styles.cadenceButton, cadence === value && styles.cadenceActive]}>
+                    <Text style={[styles.typeMuted, cadence === value && styles.cadenceActiveText]}>{value}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Label text="WHAT YOU'RE TRACKING" />
+              <TextInput value={tracking} onChangeText={setTracking} placeholder="e.g. distance, hours, pages" placeholderTextColor={colors.inactive} style={styles.input} />
+              <Label text="TARGET" />
+              <TextInput value={target} onChangeText={setTarget} placeholder="e.g. 5km or 2 hours" placeholderTextColor={colors.inactive} style={styles.input} />
+            </>
+          ) : (
+            <>
+              <Label text="DURATION" />
+              <TextInput value={duration} onChangeText={setDuration} placeholder="e.g. 6 weeks" placeholderTextColor={colors.inactive} style={styles.input} />
+              <Label text="MILESTONES" />
+              {milestones.map((milestone, index) => (
+                <View key={index} style={styles.milestone}>
+                  <View style={styles.emptyCircle} />
+                  <TextInput value={milestone.title} onChangeText={(value) => updateMilestone(index, "title", value)} placeholder="Milestone name" placeholderTextColor={colors.inactive} style={[styles.input, styles.milestoneTitle]} />
+                  <TextInput value={milestone.timing} onChangeText={(value) => updateMilestone(index, "timing", value)} style={[styles.input, styles.weekInput]} />
+                  <Pressable accessibilityLabel="Remove milestone" onPress={() => setMilestones((current) => current.filter((_, itemIndex) => itemIndex !== index))}>
+                    <IconGlyph name="close" size={14} color={colors.inactive} />
+                  </Pressable>
+                </View>
+              ))}
+              <DraftButton label="Add milestone" icon="add" onPress={() => setMilestones((current) => [...current, { title: "", timing: `Week ${current.length + 1}` }])} style={styles.dashed} />
+            </>
+          )}
+          <DraftButton label="Create goal" primary onPress={createDraftGoal} style={styles.createButton} />
+        </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
     </Screen>
   );
+}
+
+function Label({ text }: { text: string }) {
+  return <Text style={styles.label}>{text}</Text>;
 }
 
 const styles = StyleSheet.create({
@@ -125,137 +191,175 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
-    marginBottom: 16
-  },
-  headingText: {
-    flex: 1
+    marginBottom: 18
   },
   title: {
     color: colors.ink,
-    fontSize: 30,
+    fontSize: 22,
     fontWeight: "900"
   },
   subtitle: {
     color: colors.inkMuted,
-    fontWeight: "700",
-    lineHeight: 20,
-    marginTop: 5
+    fontSize: 13,
+    fontWeight: "600",
+    marginTop: 2
   },
-  newButton: {
-    minHeight: 42,
-    minWidth: 76
+  list: {
+    gap: 10,
+    marginBottom: 20
   },
-  card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.stroke,
-    borderWidth: 1,
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 14
-  },
-  projectTop: {
+  rowTop: {
     flexDirection: "row",
-    gap: 12
+    alignItems: "center",
+    gap: 10
   },
-  colorRail: {
-    width: 8,
-    borderRadius: 999
-  },
-  projectCopy: {
+  copy: {
     flex: 1
   },
-  projectTitle: {
+  rowTitle: {
     color: colors.ink,
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: "900"
   },
-  description: {
+  rowMeta: {
     color: colors.inkMuted,
-    lineHeight: 20,
-    fontWeight: "700",
-    marginTop: 5
-  },
-  meta: {
-    color: colors.purple,
-    fontSize: 12,
-    fontWeight: "900",
-    marginTop: 8
-  },
-  moveColumn: {
-    gap: 7
-  },
-  moveButton: {
-    borderRadius: 12,
-    backgroundColor: colors.lavender,
-    paddingHorizontal: 10,
-    paddingVertical: 8
-  },
-  moveDisabled: {
-    opacity: 0.35
-  },
-  moveText: {
-    color: colors.purple,
     fontSize: 11,
-    fontWeight: "900"
+    fontWeight: "600",
+    marginTop: 2
   },
-  visibilityRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 14
+  projectTrack: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.stroke,
+    overflow: "hidden",
+    marginLeft: 27,
+    marginTop: 10
   },
-  visibility: {
+  projectFill: {
+    height: "100%",
+    backgroundColor: colors.mint
+  },
+  backdrop: {
     flex: 1,
-    alignItems: "center",
-    borderRadius: 999,
-    borderColor: colors.stroke,
-    borderWidth: 1,
-    paddingVertical: 9
-  },
-  visibilityActive: {
-    backgroundColor: colors.lavender,
-    borderColor: colors.purple
-  },
-  visibilityText: {
-    color: colors.inkMuted,
-    fontSize: 12,
-    fontWeight: "900",
-    textTransform: "capitalize"
-  },
-  visibilityTextActive: {
-    color: colors.purple
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(15,12,24,0.34)"
+    backgroundColor: "rgba(0,0,0,0.55)"
   },
   modal: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    padding: 20,
-    gap: 12
+    backgroundColor: colors.surfaceSoft,
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    padding: 18,
+    paddingBottom: 26
   },
-  modalTitle: {
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16
+  },
+  sheetTitle: {
     color: colors.ink,
-    fontSize: 22,
+    fontSize: 16,
     fontWeight: "900"
   },
+  headerSpacer: {
+    width: 18
+  },
+  label: {
+    color: colors.inkMuted,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1,
+    marginBottom: 6,
+    marginTop: 10
+  },
   input: {
-    minHeight: 52,
-    borderRadius: 16,
+    minHeight: 42,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.stroke,
-    paddingHorizontal: 16,
+    backgroundColor: colors.surfaceSoft,
     color: colors.ink,
-    backgroundColor: colors.surface,
+    paddingHorizontal: 12,
+    fontSize: 13,
     fontWeight: "700"
   },
-  textArea: {
-    minHeight: 92,
-    paddingTop: 14
+  typeRow: {
+    flexDirection: "row",
+    gap: 8
+  },
+  typeButton: {
+    flex: 1,
+    minHeight: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#333338",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  typeActive: {
+    backgroundColor: colors.purple,
+    borderColor: colors.purple
+  },
+  typeMuted: {
+    color: colors.inkMuted,
+    fontSize: 12,
+    fontWeight: "800"
+  },
+  typeActiveText: {
+    color: colors.surfaceSoft,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  cadenceButton: {
+    flex: 1,
+    minHeight: 36,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: "#333338",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  cadenceActive: {
+    backgroundColor: colors.surface,
+    borderColor: colors.purple
+  },
+  cadenceActiveText: {
+    color: colors.purple
+  },
+  milestone: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 6
+  },
+  emptyCircle: {
+    width: 14,
+    height: 14,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: colors.inactive
+  },
+  milestoneTitle: {
+    flex: 1,
+    minHeight: 35,
+    fontSize: 12
+  },
+  weekInput: {
+    width: 62,
+    minHeight: 35,
+    textAlign: "center",
+    fontSize: 11,
+    paddingHorizontal: 4
+  },
+  dashed: {
+    borderStyle: "dashed",
+    marginTop: 2
+  },
+  createButton: {
+    marginTop: 10
   }
 });
