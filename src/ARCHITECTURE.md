@@ -1,4 +1,4 @@
-# Mobile App Architecture
+# Progress App Architecture
 
 This app is intentionally brand-ready and feature-organized.
 

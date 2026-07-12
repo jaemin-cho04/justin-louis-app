@@ -1,5 +1,6 @@
 {
-  "name": "mobile-app-tbd",
+  "name": "progress-app",
+  "description": "A local-first social productivity app for habits, projects, and close-friend accountability.",
   "version": "0.1.0",
   "private": true,
   "main": "index.ts",

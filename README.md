@@ -1,62 +1,41 @@
-# Brand-Ready Mobile App
+# Progress
 
-A mobile-first social productivity app prototype built with Expo, React Native, and TypeScript.
+Progress is a mobile-first social productivity app for tracking habits and projects with a small circle of friends. It combines daily logging, milestone-based goals, private reflection, and optional social accountability without turning progress into a leaderboard.
 
-The final product name is intentionally undecided. Runtime copy, Expo metadata, bundle IDs, URL scheme, storage namespace, and brand colors are centralized in `src/config/brand.json` so the name can be replaced later without searching the whole codebase.
+Built with Expo, React Native, and TypeScript, the current prototype runs on iOS, Android, and the web. Its interface follows the supplied Progress design specifications and adapts across compact and large iPhone screen sizes.
 
-## Product Spine
+## Features
 
-- **Projects** are the main goal containers.
-- **Tasks** are one-time deliverables with due dates.
-- **Habits** recur on selected weekdays.
-- **Log entries** are the core record: `done`, `attempted`, `missed`, `skipped`, or `deferred`.
-- **Progress bars** are computed views of log entries, not separate stored state.
-- **BreakDays** defer the day's scheduled items without turning them into failures.
-- **Reflections** can be tagged with default and CanMEDS-style traits.
-- **Friends** show progress relative to their own goals, with critique opt-in.
+- **Home dashboard** with weekly progress, daily breakdowns, and bounded day navigation.
+- **Progress Log** for marking scheduled work as done, attempted, missed, skipped, or deferred.
+- **Goals** for creating recurring habits or finite projects with editable milestone lists.
+- **Friends** with personal progress bars, shared task details, and persisted task comments.
+- **Archives** organized by projects and habits, including drill-down history and editable notes.
+- **You** profile with personal statistics, profile editing, notification preferences, privacy information, and local-data reset.
+- **Local persistence** through SQLite on native devices and local storage on the web.
+- **Responsive layout** with safe-area and home-indicator support across iPhone sizes.
 
-## Current Screens
+## Product Principles
 
-- **Onboarding** - name, handle, term label.
-- **Home** - daily progress, next scheduled items, rest-day toggle, date navigation, log and reflection entry.
-- **Log** - scheduled tasks and habits for the selected day with five logging states.
-- **Friends** - close-friend progress, cheer/credit/critique feedback model.
-- **Goals** - project priority, privacy, and creation.
-- **You** - private stats, trait counts, recent reflections, reset demo data.
+- Progress is measured against each person's own goals.
+- Green means completed, purple means attempting or active, and gray means incomplete.
+- Friends only see information that has been intentionally shared.
+- Logging is flexible and supports retroactive updates without turning rest into failure.
+- Progress summaries are calculated from log entries rather than stored as duplicate state.
 
-## Architecture
+## Tech Stack
 
-The app is organized by feature and responsibility:
+- Expo SDK 54
+- React Native 0.81
+- React 19
+- TypeScript
+- Expo SQLite
+- React Native Safe Area Context
+- Expo Vector Icons
 
-- `src/shell` - app shell and tab routing.
-- `src/config` - brand config and feature flags.
-- `src/domain` - model types, fixtures, and selectors.
-- `src/features` - feature-specific screens/components.
-- `src/services` - storage and app-state orchestration.
-- `src/shared` - reusable UI, theme, and utilities.
+## Run On A Phone
 
-Every source file must stay under 700 lines. Files approaching 500 lines should be split.
-
-## How To Rename The App
-
-Edit `src/config/brand.json`:
-
-- `appDisplayName`
-- `appTagline`
-- `appSlug`
-- `urlScheme`
-- `iosBundleId`
-- `androidPackage`
-- `storageNamespace`
-- `primaryColor`
-- `secondaryColor`
-- `icon`
-
-Expo reads those values through `app.config.js`. Runtime UI reads them through `src/config/brand.ts`.
-
-## Run It
-
-Install dependencies:
+Install the dependencies:
 
 ```bash
 npm install
@@ -65,72 +44,61 @@ npm install
 Start Expo:
 
 ```bash
-npm run start
+npx expo start
 ```
 
-Open on iOS Simulator:
+Install Expo Go on your phone, connect the phone and computer to the same Wi-Fi network, and scan the displayed QR code. If the local connection is unavailable, use:
+
+```bash
+npx expo start --tunnel
+```
+
+To clear the Metro cache:
+
+```bash
+npx expo start --clear
+```
+
+## Other Run Commands
 
 ```bash
 npm run ios
-```
-
-Open on Android:
-
-```bash
 npm run android
+npm run web
 ```
 
-## Preview In VS Code Or Expo Go
+## Verification
 
-VS Code:
-
-1. Install the recommended extensions when VS Code prompts you, especially **React Native Tools**.
-2. Open the Run and Debug panel.
-3. Choose **Debug Expo Go**.
-4. Scan the QR code with Expo Go, or use the dev-server link shown by Expo.
-
-Expo Go can be used with multiple app projects. Start whichever project you want, then open that project's QR/link in Expo Go. If another project is already running, Expo Go simply switches to the newly opened project.
-
-If two projects fight over the same Metro port, stop one server or start this one with a new port:
-
-```bash
-npx expo start --port 8082
-```
-
-Desktop browser preview:
-
-```bash
-npx expo export --platform web --output-dir dist-web
-cd dist-web
-python3 -m http.server 4173 --bind 127.0.0.1
-```
-
-Then open `http://127.0.0.1:4173/`.
-
-Static HTML prototype:
-
-```bash
-python3 -m http.server 8000
-```
-
-Then open `http://localhost:8000`.
-
-Verify:
+Run the full local verification suite:
 
 ```bash
 npm run verify
 ```
 
-Bundle check:
+This runs TypeScript checking, source-size and brand-configuration checks, and progress-selector tests.
+
+Create an export bundle when checking production bundling:
 
 ```bash
 npx expo export --platform ios --output-dir dist
 ```
 
-## Next Product Work
+## Project Structure
 
-- Finish task/habit editing flows.
-- Add guided first-project setup.
-- Build reflection search and CanMEDS retrieval views.
-- Add invite-based friends, then backend sync.
-- Add notification, widget, and App Intent surfaces only after the core loop feels excellent.
+```text
+src/
+  config/      Brand configuration and feature flags
+  domain/      Models, fixtures, and progress selectors
+  features/    Home, logging, goals, friends, archives, and profile screens
+  services/    Persistent storage and app-state actions
+  shared/      Reusable UI, theme tokens, and date utilities
+  shell/       Application shell and tab routing
+```
+
+The older static HTML/CSS/JavaScript prototype remains in the repository as an early design and architecture reference. The Expo app under `src/` is the active implementation.
+
+## Current Status
+
+This repository contains a functional local-first prototype. Core interactions persist on the device, but friend data is still simulated and there is no remote account, authentication, synchronization, notification delivery, or production backend yet.
+
+Likely next steps include editing existing goals, friend invitations and account management, backend synchronization, media support, richer archive filtering, and production notification flows.
