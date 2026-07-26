@@ -1,0 +1,19 @@
+project_id = "progress-app"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+
+[db]
+port = 54322
+major_version = 15
+
+[auth]
+enabled = true
+site_url = "progress://auth"
+additional_redirect_urls = ["exp://127.0.0.1:8081", "progress://auth", "progress://auth/reset"]
+
+[storage]
+enabled = true
+file_size_limit = "10MiB"

@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import {
   Badge,
   DraftButton,
@@ -10,8 +9,9 @@ import {
 } from "../../../shared/components/DraftUI";
 import { Screen } from "../../../shared/components/Screen";
 import { colors } from "../../../shared/theme/colors";
-import type { AppData, Milestone, Visibility } from "../../../domain/model/types";
-
+import { styles } from "./GoalsScreen.styles";
+import { GoalManagementControls, visibilityLabel } from "../components/GoalManagementControls";
+import type { AppData, Milestone, Project, Visibility } from "../../../domain/model/types";
 type Props = {
   data: AppData;
   onMoveProject: (projectId: string, direction: "up" | "down") => void;
@@ -26,13 +26,21 @@ type Props = {
     duration?: string;
     milestones?: Array<Omit<Milestone, "id">>;
   }) => void;
+  onUpdateProject: (projectId: string, draft: Parameters<Props["onAddProject"]>[0]) => void | Promise<void>;
+  onDeleteProject: (projectId: string) => void | Promise<void>;
+  onCreateCollaborationInvite?: (project: Project) => Promise<string>;
+  collaborators?: Array<{ projectId: string; userId: string; role: "viewer" | "editor"; profile: { displayName: string; handle: string }; action: "remove" | "leave" }>;
+  collaborationInvites?: Array<{ id: string; code: string; projectId?: string; expiresAt: string }>;
+  onRemoveCollaborator?: (projectId: string, userId: string) => Promise<void>;
+  onRevokeCollaborationInvite?: (inviteId: string) => Promise<void>;
 };
-
 type GoalType = "habit" | "project";
-type MilestoneDraft = { title: string; timing: string };
+type MilestoneDraft = { title: string; timing: string; completedAt?: string };
 
-export function GoalsScreen({ data, onAddProject }: Props) {
+export function GoalsScreen({ data, onMoveProject, onSetVisibility, onAddProject, onUpdateProject, onDeleteProject, onCreateCollaborationInvite, collaborators = [], collaborationInvites = [], onRemoveCollaborator, onRevokeCollaborationInvite }: Props) {
   const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [title, setTitle] = useState("");
   const [goalType, setGoalType] = useState<GoalType>("project");
   const [cadence, setCadence] = useState<"Daily" | "Weekly" | "Monthly">("Daily");
@@ -42,31 +50,80 @@ export function GoalsScreen({ data, onAddProject }: Props) {
   const [milestones, setMilestones] = useState<MilestoneDraft[]>([
     { title: "", timing: "Week 1" }
   ]);
+  const [validationError, setValidationError] = useState("");
+  const [collaborationCode, setCollaborationCode] = useState("");
 
   const goals = [...data.projects].sort((a, b) => a.priority - b.priority);
+  const editingGoal = goals.find((goal) => goal.id === editingId);
+  const editingIndex = goals.findIndex((goal) => goal.id === editingId);
   const habitCount = goals.filter((goal) => goal.goalType === "habit").length;
   const projectCount = goals.length - habitCount;
 
-  const createDraftGoal = () => {
-    if (!title.trim()) return;
+  const saveGoal = async () => {
+    if (!title.trim()) {
+      setValidationError("Enter a title before creating this goal.");
+      return;
+    }
 
-    onAddProject({
+    const validMilestones = milestones.filter((item) => item.title.trim());
+    const draft = {
       title,
-      description: goalType === "habit" ? `${cadence} - ${tracking || "habit"}` : `${duration || "Project"} - ${milestones.length} milestones`,
+      description: goalType === "habit" ? `${cadence} - ${tracking || "habit"}` : `${duration || "Project"} - ${validMilestones.length} milestones`,
       goalType,
       cadence: goalType === "habit" ? cadence : undefined,
       tracking: goalType === "habit" ? tracking : undefined,
       target: goalType === "habit" ? target : undefined,
       duration: goalType === "project" ? duration : undefined,
       milestones: goalType === "project"
-        ? milestones.filter((item) => item.title.trim()).map((item) => ({ ...item }))
+        ? validMilestones.map((item) => ({ ...item }))
         : undefined
-    });
+    };
+
+    try {
+      if (editingId) await onUpdateProject(editingId, draft);
+      else onAddProject(draft);
+    } catch (cause) {
+      setValidationError(cause instanceof Error ? cause.message : "Could not save the goal.");
+      return;
+    }
+
     setIsAdding(false);
+    setEditingId(null);
     setTitle("");
+    setValidationError("");
+    setCollaborationCode("");
     setGoalType("project");
     setDuration("");
     setMilestones([{ title: "", timing: "Week 1" }]);
+  };
+
+  const openNewGoal = () => {
+    setEditingId(null);
+    setConfirmDelete(false);
+    setTitle("");
+    setGoalType("project");
+    setCadence("Daily");
+    setTracking("");
+    setTarget("");
+    setDuration("");
+    setMilestones([{ title: "", timing: "Week 1" }]);
+    setValidationError("");
+    setCollaborationCode("");
+    setIsAdding(true);
+  };
+
+  const openEditGoal = (goal: Project) => {
+    setEditingId(goal.id);
+    setConfirmDelete(false);
+    setTitle(goal.title);
+    setGoalType(goal.goalType ?? "project");
+    setCadence(goal.cadence ?? "Daily");
+    setTracking(goal.tracking ?? "");
+    setTarget(goal.target ?? "");
+    setDuration(goal.duration ?? "");
+    setMilestones(goal.milestones?.map((item) => ({ title: item.title, timing: item.timing, completedAt: item.completedAt })) ?? [{ title: "", timing: "Week 1" }]);
+    setValidationError("");
+    setIsAdding(true);
   };
 
   const updateMilestone = (index: number, field: keyof MilestoneDraft, value: string) => {
@@ -83,8 +140,9 @@ export function GoalsScreen({ data, onAddProject }: Props) {
           <Text style={styles.title}>Goals</Text>
           <Text style={styles.subtitle}>{habitCount} habits - {projectCount} projects</Text>
         </View>
-        <DraftButton label="New goal" icon="add" onPress={() => setIsAdding(true)} />
+        <DraftButton label="New goal" icon="add" onPress={openNewGoal} />
       </View>
+      <Text style={styles.editHelp}>Tap a goal to edit its details, milestones, or sharing.</Text>
 
       <View style={styles.list}>
         {goals.map((goal) => {
@@ -93,10 +151,11 @@ export function GoalsScreen({ data, onAddProject }: Props) {
           const total = goal.milestones?.length ?? 0;
           const progress = total ? (completed / total) * 100 : 0;
           const meta = isHabit
-            ? `${goal.cadence ?? "Daily"} - ${goal.tracking ?? goal.description}`
-            : `${goal.duration ?? goal.termLabel ?? "Project"} - ${completed} of ${total} milestones`;
+            ? `${goal.cadence ?? "Daily"} · ${goal.tracking ?? goal.description} · ${visibilityLabel(goal.visibility)}`
+            : `${goal.duration ?? goal.termLabel ?? "Project"} · ${completed}/${total} milestones · ${visibilityLabel(goal.visibility)}`;
 
-          return <DraftCard key={goal.id}>
+          return <Pressable key={goal.id} accessibilityRole="button" accessibilityLabel={`Edit ${goal.title}`} onPress={() => openEditGoal(goal)}>
+          <DraftCard>
             <View style={styles.rowTop}>
               <IconGlyph name={isHabit ? "repeat-outline" : "flag-outline"} />
               <View style={styles.copy}>
@@ -104,68 +163,87 @@ export function GoalsScreen({ data, onAddProject }: Props) {
                 <Text style={styles.rowMeta}>{meta}</Text>
               </View>
               <Badge label={isHabit ? "HABIT" : "PROJECT"} />
-              <IconGlyph name="reorder-three-outline" size={15} color={colors.inactive} />
             </View>
             {!isHabit && (
               <View style={styles.projectTrack}>
                 <View style={[styles.projectFill, { width: `${progress}%` }]} />
               </View>
             )}
-          </DraftCard>;
+          </DraftCard>
+          </Pressable>;
         })}
       </View>
 
       <Modal visible={isAdding} animationType="slide" transparent onRequestClose={() => setIsAdding(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setIsAdding(false)} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Close new goal" style={styles.backdrop} onPress={() => setIsAdding(false)} />
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.modal}>
         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <View style={styles.sheetHeader}>
-            <Pressable accessibilityRole="button" onPress={() => setIsAdding(false)}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Close new goal" onPress={() => setIsAdding(false)} style={styles.closeButton}>
               <IconGlyph name="close" size={18} color={colors.inkMuted} />
             </Pressable>
-            <Text style={styles.sheetTitle}>New goal</Text>
+            <Text style={styles.sheetTitle}>{editingId ? "Edit goal" : "New goal"}</Text>
             <View style={styles.headerSpacer} />
           </View>
 
           <Label text="TITLE" />
-          <TextInput value={title} onChangeText={setTitle} placeholder="e.g. Research project" placeholderTextColor={colors.inactive} style={styles.input} />
+          <TextInput accessibilityLabel="Goal title" value={title} onChangeText={(value) => { setTitle(value); if (validationError) setValidationError(""); }} placeholder="e.g. Research project" placeholderTextColor={colors.inactive} style={styles.input} />
+          {!!validationError && <Text accessibilityRole="alert" style={styles.errorText}>{validationError}</Text>}
 
           <Label text="TYPE" />
           <View style={styles.typeRow}>
-            <Pressable onPress={() => setGoalType("habit")} style={[styles.typeButton, goalType === "habit" && styles.typeActive]}>
+            <Pressable accessibilityRole="button" accessibilityState={{ selected: goalType === "habit" }} onPress={() => setGoalType("habit")} style={[styles.typeButton, goalType === "habit" && styles.typeActive]}>
               <Text style={goalType === "habit" ? styles.typeActiveText : styles.typeMuted}>Habit - repeats</Text>
             </Pressable>
-            <Pressable onPress={() => setGoalType("project")} style={[styles.typeButton, goalType === "project" && styles.typeActive]}>
+            <Pressable accessibilityRole="button" accessibilityState={{ selected: goalType === "project" }} onPress={() => setGoalType("project")} style={[styles.typeButton, goalType === "project" && styles.typeActive]}>
               <Text style={goalType === "project" ? styles.typeActiveText : styles.typeMuted}>Project - has an end</Text>
             </Pressable>
           </View>
+
+          {editingGoal && (
+            <GoalManagementControls
+              project={editingGoal}
+              index={editingIndex}
+              total={goals.length}
+              onMove={onMoveProject}
+              onSetVisibility={onSetVisibility}
+            />
+          )}
 
           {goalType === "habit" ? (
             <>
               <Label text="HOW OFTEN" />
               <View style={styles.typeRow}>
                 {(["Daily", "Weekly", "Monthly"] as const).map((value) => (
-                  <Pressable key={value} onPress={() => setCadence(value)} style={[styles.cadenceButton, cadence === value && styles.cadenceActive]}>
+                  <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: cadence === value }} onPress={() => setCadence(value)} style={[styles.cadenceButton, cadence === value && styles.cadenceActive]}>
                     <Text style={[styles.typeMuted, cadence === value && styles.cadenceActiveText]}>{value}</Text>
                   </Pressable>
                 ))}
               </View>
               <Label text="WHAT YOU'RE TRACKING" />
-              <TextInput value={tracking} onChangeText={setTracking} placeholder="e.g. distance, hours, pages" placeholderTextColor={colors.inactive} style={styles.input} />
+              <TextInput accessibilityLabel="Tracking unit" value={tracking} onChangeText={setTracking} placeholder="e.g. distance, hours, pages" placeholderTextColor={colors.inactive} style={styles.input} />
               <Label text="TARGET" />
-              <TextInput value={target} onChangeText={setTarget} placeholder="e.g. 5km or 2 hours" placeholderTextColor={colors.inactive} style={styles.input} />
+              <TextInput accessibilityLabel="Habit target" value={target} onChangeText={setTarget} placeholder="e.g. 5km or 2 hours" placeholderTextColor={colors.inactive} style={styles.input} />
             </>
           ) : (
             <>
               <Label text="DURATION" />
-              <TextInput value={duration} onChangeText={setDuration} placeholder="e.g. 6 weeks" placeholderTextColor={colors.inactive} style={styles.input} />
+              <TextInput accessibilityLabel="Project duration" value={duration} onChangeText={setDuration} placeholder="e.g. 6 weeks" placeholderTextColor={colors.inactive} style={styles.input} />
               <Label text="MILESTONES" />
               {milestones.map((milestone, index) => (
                 <View key={index} style={styles.milestone}>
-                  <View style={styles.emptyCircle} />
-                  <TextInput value={milestone.title} onChangeText={(value) => updateMilestone(index, "title", value)} placeholder="Milestone name" placeholderTextColor={colors.inactive} style={[styles.input, styles.milestoneTitle]} />
-                  <TextInput value={milestone.timing} onChangeText={(value) => updateMilestone(index, "timing", value)} style={[styles.input, styles.weekInput]} />
-                  <Pressable accessibilityLabel="Remove milestone" onPress={() => setMilestones((current) => current.filter((_, itemIndex) => itemIndex !== index))}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Milestone ${index + 1} complete`}
+                    accessibilityState={{ selected: Boolean(milestone.completedAt) }}
+                    onPress={() => updateMilestone(index, "completedAt", milestone.completedAt ? "" : new Date().toISOString())}
+                    style={[styles.milestoneCheck, milestone.completedAt && styles.milestoneCheckDone]}
+                  >
+                    {milestone.completedAt && <IconGlyph name="checkmark" size={16} color={colors.surfaceSoft} />}
+                  </Pressable>
+                  <TextInput accessibilityLabel={`Milestone ${index + 1} name`} value={milestone.title} onChangeText={(value) => updateMilestone(index, "title", value)} placeholder="Milestone name" placeholderTextColor={colors.inactive} style={[styles.input, styles.milestoneTitle]} />
+                  <TextInput accessibilityLabel={`Milestone ${index + 1} timing`} value={milestone.timing} onChangeText={(value) => updateMilestone(index, "timing", value)} style={[styles.input, styles.weekInput]} />
+                  <Pressable accessibilityRole="button" accessibilityLabel="Remove milestone" onPress={() => setMilestones((current) => current.filter((_, itemIndex) => itemIndex !== index))} style={styles.removeMilestone}>
                     <IconGlyph name="close" size={14} color={colors.inactive} />
                   </Pressable>
                 </View>
@@ -173,7 +251,42 @@ export function GoalsScreen({ data, onAddProject }: Props) {
               <DraftButton label="Add milestone" icon="add" onPress={() => setMilestones((current) => [...current, { title: "", timing: `Week ${current.length + 1}` }])} style={styles.dashed} />
             </>
           )}
-          <DraftButton label="Create goal" primary onPress={createDraftGoal} style={styles.createButton} />
+          <DraftButton label={editingId ? "Save changes" : "Create goal"} primary onPress={() => { void saveGoal(); }} style={styles.createButton} />
+          {editingGoal && onCreateCollaborationInvite && <>
+            <DraftButton label={collaborationCode ? `Collaborator invite: ${collaborationCode}` : "Invite a collaborator"} onPress={() => {
+              void onCreateCollaborationInvite(editingGoal).then(setCollaborationCode).catch((cause) => setValidationError(cause instanceof Error ? cause.message : "Could not create the invite."));
+            }} style={styles.deleteButton} />
+            <Text style={styles.inviteHelp}>Anyone with this private code can join this goal as an editor for seven days.</Text>
+            {collaborationInvites.filter((invite) => invite.projectId === editingGoal.id).map((invite) => <View key={invite.id} style={styles.collaboratorRow}>
+              <View style={styles.copy}><Text style={styles.rowTitle}>Invite {invite.code}</Text><Text style={styles.rowMeta}>Expires {new Date(invite.expiresAt).toLocaleDateString()}</Text></View>
+              <Pressable accessibilityRole="button" accessibilityLabel={`Revoke collaborator invite ${invite.code}`} style={styles.removeMilestone} onPress={() => {
+                if (onRevokeCollaborationInvite) void onRevokeCollaborationInvite(invite.id).catch((cause) => setValidationError(cause instanceof Error ? cause.message : "Could not revoke the invite."));
+              }}><IconGlyph name="close" size={14} color={colors.coral} /></Pressable>
+            </View>)}
+            {collaborators.filter((member) => member.projectId === editingGoal.id).map((member) => <View key={member.userId} style={styles.collaboratorRow}>
+              <View style={styles.copy}><Text style={styles.rowTitle}>{member.profile.displayName}</Text><Text style={styles.rowMeta}>{member.profile.handle} · {member.role}</Text></View>
+              <Pressable accessibilityRole="button" accessibilityLabel={member.action === "leave" ? `Leave collaboration with ${member.profile.displayName}` : `Remove collaborator ${member.profile.displayName}`} style={styles.removeMilestone} onPress={() => {
+                if (onRemoveCollaborator) void onRemoveCollaborator(editingGoal.id, member.userId).catch((cause) => setValidationError(cause instanceof Error ? cause.message : "Could not update collaborators."));
+              }}><IconGlyph name={member.action === "leave" ? "exit-outline" : "trash-outline"} size={14} color={colors.coral} /></Pressable>
+            </View>)}
+          </>}
+          {editingId && (!confirmDelete ? (
+            <DraftButton label="Delete goal" onPress={() => setConfirmDelete(true)} style={styles.deleteButton} />
+          ) : (
+            <View style={styles.deleteConfirm}>
+              <Text style={styles.deleteWarning}>Delete this goal and all of its schedules, logs, and linked reflections?</Text>
+              <View style={styles.deleteActions}>
+                <DraftButton label="Cancel" onPress={() => setConfirmDelete(false)} style={styles.deleteAction} />
+                <Pressable accessibilityRole="button" style={[styles.deleteAction, styles.deleteDanger]} onPress={() => {
+                  void Promise.resolve(onDeleteProject(editingId)).then(() => {
+                    setIsAdding(false);
+                    setEditingId(null);
+                    setConfirmDelete(false);
+                  }).catch((cause) => setValidationError(cause instanceof Error ? cause.message : "Could not delete the goal."));
+                }}><Text style={styles.deleteDangerText}>Delete permanently</Text></Pressable>
+              </View>
+            </View>
+          ))}
         </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
@@ -184,182 +297,3 @@ export function GoalsScreen({ data, onAddProject }: Props) {
 function Label({ text }: { text: string }) {
   return <Text style={styles.label}>{text}</Text>;
 }
-
-const styles = StyleSheet.create({
-  heading: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    marginBottom: 18
-  },
-  title: {
-    color: colors.ink,
-    fontSize: 22,
-    fontWeight: "900"
-  },
-  subtitle: {
-    color: colors.inkMuted,
-    fontSize: 13,
-    fontWeight: "600",
-    marginTop: 2
-  },
-  list: {
-    gap: 10,
-    marginBottom: 20
-  },
-  rowTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10
-  },
-  copy: {
-    flex: 1
-  },
-  rowTitle: {
-    color: colors.ink,
-    fontSize: 15,
-    fontWeight: "900"
-  },
-  rowMeta: {
-    color: colors.inkMuted,
-    fontSize: 11,
-    fontWeight: "600",
-    marginTop: 2
-  },
-  projectTrack: {
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.stroke,
-    overflow: "hidden",
-    marginLeft: 27,
-    marginTop: 10
-  },
-  projectFill: {
-    height: "100%",
-    backgroundColor: colors.mint
-  },
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.55)"
-  },
-  modal: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: colors.surfaceSoft,
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    padding: 18,
-    paddingBottom: 26
-  },
-  sheetHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 16
-  },
-  sheetTitle: {
-    color: colors.ink,
-    fontSize: 16,
-    fontWeight: "900"
-  },
-  headerSpacer: {
-    width: 18
-  },
-  label: {
-    color: colors.inkMuted,
-    fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 1,
-    marginBottom: 6,
-    marginTop: 10
-  },
-  input: {
-    minHeight: 42,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.stroke,
-    backgroundColor: colors.surfaceSoft,
-    color: colors.ink,
-    paddingHorizontal: 12,
-    fontSize: 13,
-    fontWeight: "700"
-  },
-  typeRow: {
-    flexDirection: "row",
-    gap: 8
-  },
-  typeButton: {
-    flex: 1,
-    minHeight: 40,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#333338",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  typeActive: {
-    backgroundColor: colors.purple,
-    borderColor: colors.purple
-  },
-  typeMuted: {
-    color: colors.inkMuted,
-    fontSize: 12,
-    fontWeight: "800"
-  },
-  typeActiveText: {
-    color: colors.surfaceSoft,
-    fontSize: 12,
-    fontWeight: "900"
-  },
-  cadenceButton: {
-    flex: 1,
-    minHeight: 36,
-    borderRadius: 9,
-    borderWidth: 1,
-    borderColor: "#333338",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  cadenceActive: {
-    backgroundColor: colors.surface,
-    borderColor: colors.purple
-  },
-  cadenceActiveText: {
-    color: colors.purple
-  },
-  milestone: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 6
-  },
-  emptyCircle: {
-    width: 14,
-    height: 14,
-    borderRadius: 999,
-    borderWidth: 1.5,
-    borderColor: colors.inactive
-  },
-  milestoneTitle: {
-    flex: 1,
-    minHeight: 35,
-    fontSize: 12
-  },
-  weekInput: {
-    width: 62,
-    minHeight: 35,
-    textAlign: "center",
-    fontSize: 11,
-    paddingHorizontal: 4
-  },
-  dashed: {
-    borderStyle: "dashed",
-    marginTop: 2
-  },
-  createButton: {
-    marginTop: 10
-  }
-});

@@ -1,5 +1,6 @@
-import { weekdayFor, weekKeys } from "../../shared/utils/dates";
+import { parseDateKey, weekdayFor, weekKeys } from "../../shared/utils/dates";
 import type { AppData, LogEntry, LogStatus, WorkItem } from "../model/types";
+import { buildAppDataIndex, logKey, type AppDataIndex } from "./appDataIndex";
 
 export type ProgressSegment = {
   status: LogStatus | "open";
@@ -31,38 +32,54 @@ export function isScheduledFor(item: WorkItem, date: string): boolean {
     return item.dueDate === date;
   }
 
+  if (item.recurrenceCadence === "Monthly") {
+    return parseDateKey(date).getDate() === (item.monthlyDay ?? 1);
+  }
+
   return Boolean(item.weekdays?.includes(weekdayFor(date)));
 }
 
 export function scheduledItems(data: AppData, date: string): WorkItem[] {
+  const index = buildAppDataIndex(data);
+  return scheduledItemsWithIndex(data, date, index);
+}
+
+function scheduledItemsWithIndex(data: AppData, date: string, index: AppDataIndex): WorkItem[] {
   return data.workItems
     .filter((item) => isScheduledFor(item, date))
     .sort((first, second) => {
-      const firstProject = data.projects.find((project) => project.id === first.projectId);
-      const secondProject = data.projects.find((project) => project.id === second.projectId);
+      const firstProject = index.projectById.get(first.projectId);
+      const secondProject = index.projectById.get(second.projectId);
       return (firstProject?.priority ?? 99) - (secondProject?.priority ?? 99);
     });
 }
 
 export function logForItem(data: AppData, itemId: string, date: string): LogEntry | undefined {
-  return data.logs.find((entry) => entry.itemId === itemId && entry.date === date);
+  return buildAppDataIndex(data).logByItemAndDate.get(logKey(itemId, date));
+}
+
+export function logsForItem(data: AppData, itemId: string): LogEntry[] {
+  return [...(buildAppDataIndex(data).logsByItemId.get(itemId) ?? [])]
+    .sort((first, second) => second.date.localeCompare(first.date));
 }
 
 export function summarizeDay(data: AppData, date: string): ProgressSummary {
-  const items = scheduledItems(data, date);
+  const index = buildAppDataIndex(data);
+  const items = scheduledItemsWithIndex(data, date, index);
   const segments: ProgressSegment[] = items.map((item) => {
-    const log = logForItem(data, item.id, date);
-    return { status: log?.status ?? "open", weight: item.effort };
+    const log = index.logByItemAndDate.get(logKey(item.id, date));
+    return { status: log?.status ?? (isBreakDay(data, date) ? "deferred" : "open"), weight: item.effort };
   });
 
   return summarizeSegments(segments);
 }
 
 export function summarizeWeek(data: AppData): ProgressSummary {
+  const index = buildAppDataIndex(data);
   const segments: ProgressSegment[] = weekKeys().flatMap((date) =>
-    scheduledItems(data, date).map((item) => {
-      const log = logForItem(data, item.id, date);
-      return { status: log?.status ?? "open", weight: item.effort };
+    scheduledItemsWithIndex(data, date, index).map((item) => {
+      const log = index.logByItemAndDate.get(logKey(item.id, date));
+      return { status: log?.status ?? (isBreakDay(data, date) ? "deferred" : "open"), weight: item.effort };
     })
   );
 

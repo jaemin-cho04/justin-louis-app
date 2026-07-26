@@ -50,3 +50,19 @@ export function offsetDateKey(key: string, days: number): string {
   date.setDate(date.getDate() + days);
   return toDateKey(date);
 }
+
+export function formatBreakdownLabel(selectedDate: string, today: string): string {
+  const offset = Math.round(
+    (parseDateKey(selectedDate).getTime() - parseDateKey(today).getTime()) / 86400000
+  );
+
+  if (offset === 0) return "TODAY'S BREAKDOWN";
+  if (offset === -1) return "YESTERDAY'S BREAKDOWN";
+  if (offset === 1) return "TOMORROW'S BREAKDOWN";
+
+  return `${parseDateKey(selectedDate).toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric"
+  }).toUpperCase()} BREAKDOWN`;
+}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
 
 import {
   Badge,
@@ -11,28 +11,47 @@ import {
 } from "../../../shared/components/DraftUI";
 import { Screen } from "../../../shared/components/Screen";
 import { colors } from "../../../shared/theme/colors";
-import type { AppData } from "../../../domain/model/types";
+import { styles } from "./ArchivesScreen.styles";
+import { logsForItem } from "../../../domain/selectors/progress";
+import { displayDate } from "../../../shared/utils/dates";
+import type { AppData, Project, WorkItem } from "../../../domain/model/types";
 
 type Props = {
   data: AppData;
   onUpdateLogNote: (logId: string, note: string) => void;
+  onUpdateReflection: (reflectionId: string, text: string) => void;
+  onDeleteReflection: (reflectionId: string) => void;
 };
 
-const logs = [
-  { title: "5K run", date: "Monday, 1 June", color: colors.mint, note: true },
-  { title: "5K run", date: "Saturday, 30 May", color: colors.mint, note: false },
-  { title: "3K run", date: "Thursday, 28 May", color: colors.purple, note: true }
-];
+export function ArchivesScreen({ data, onUpdateLogNote, onUpdateReflection, onDeleteReflection }: Props) {
+  const [folder, setFolder] = useState<"root" | "projects" | "habits" | "reflections" | "item" | "project">("root");
+  const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const habitIds = data.workItems.filter((item) => item.kind === "habit").map((item) => item.id);
+  const habitLogCount = data.logs.filter((entry) => habitIds.includes(entry.itemId)).length;
 
-export function ArchivesScreen({ data, onUpdateLogNote }: Props) {
-  const [folder, setFolder] = useState<"root" | "projects" | "habits" | "runs">("root");
+  if (folder === "item") {
+    const habit = data.workItems.find((item) => item.id === selectedHabitId);
+    return <HabitArchive data={data} habit={habit} onUpdateLogNote={onUpdateLogNote} onBack={() => setFolder("habits")} />;
+  }
 
-  if (folder === "runs") {
-    return <RunsArchive data={data} onUpdateLogNote={onUpdateLogNote} onBack={() => setFolder("habits")} />;
+  if (folder === "project") {
+    const project = data.projects.find((item) => item.id === selectedProjectId);
+    return <ProjectArchive project={project} onBack={() => setFolder("projects")} />;
+  }
+
+  if (folder === "reflections") {
+    return <ReflectionsArchive data={data} onUpdateReflection={onUpdateReflection} onDeleteReflection={onDeleteReflection} onBack={() => setFolder("root")} />;
   }
 
   if (folder === "projects" || folder === "habits") {
-    return <CategoryArchive data={data} category={folder} onBack={() => setFolder("root")} onOpenRuns={() => setFolder("runs")} />;
+    return <CategoryArchive
+      data={data}
+      category={folder}
+      onBack={() => setFolder("root")}
+      onOpenHabit={(itemId) => { setSelectedHabitId(itemId); setFolder("item"); }}
+      onOpenProject={(projectId) => { setSelectedProjectId(projectId); setFolder("project"); }}
+    />;
   }
 
   return (
@@ -40,21 +59,27 @@ export function ArchivesScreen({ data, onUpdateLogNote }: Props) {
       <DraftStatusBar />
       <View style={styles.heading}>
         <Text style={styles.title}>Archives</Text>
-        <Text style={styles.subtitle}>Every past and current project and habit</Text>
+        <Text style={styles.subtitle}>Your goals, logs, and private reflections</Text>
       </View>
 
       <View style={styles.folderStack}>
         <Folder
           icon="briefcase-outline"
           title="Projects"
-          meta={`${data.projects.length} projects - 1 completed`}
+          meta={`${data.projects.filter((project) => project.goalType !== "habit").length} projects`}
           onPress={() => setFolder("projects")}
         />
         <Folder
           icon="repeat-outline"
           title="Habits"
-          meta="3 habits - 106 total logs"
+          meta={`${habitIds.length} habits - ${habitLogCount} total logs`}
           onPress={() => setFolder("habits")}
+        />
+        <Folder
+          icon="create-outline"
+          title="Reflections"
+          meta={`${data.reflections.length} private entries`}
+          onPress={() => setFolder("reflections")}
         />
       </View>
     </Screen>
@@ -67,13 +92,13 @@ function Folder({
   meta,
   onPress
 }: {
-  icon: "briefcase-outline" | "repeat-outline";
+  icon: "briefcase-outline" | "repeat-outline" | "create-outline";
   title: string;
   meta: string;
   onPress: () => void;
 }) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress}>
+    <Pressable accessibilityRole="button" accessibilityLabel={`${title}, ${meta}`} onPress={onPress}>
       <DraftCard style={styles.folder}>
         <IconGlyph name={icon} size={26} />
         <View style={styles.folderCopy}>
@@ -86,28 +111,97 @@ function Folder({
   );
 }
 
-function CategoryArchive({ data, category, onBack, onOpenRuns }: {
+function ReflectionsArchive({ data, onUpdateReflection, onDeleteReflection, onBack }: {
+  data: AppData;
+  onUpdateReflection: (reflectionId: string, text: string) => void;
+  onDeleteReflection: (reflectionId: string) => void;
+  onBack: () => void;
+}) {
+  const [deleteCandidateId, setDeleteCandidateId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftText, setDraftText] = useState("");
+
+  return (
+    <Screen>
+      <DraftStatusBar />
+      <Text style={styles.crumb}>Archives / Reflections</Text>
+      <View style={styles.detailHeader}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Back to archives" onPress={onBack} style={styles.iconButton}><IconGlyph name="arrow-back" size={18} color={colors.inkMuted} /></Pressable>
+        <IconGlyph name="create-outline" size={20} />
+        <Text style={styles.detailTitle}>Private reflections</Text>
+      </View>
+      <Text style={styles.archiveHelp}>Reflections are private. Delete removes one permanently after confirmation.</Text>
+      <View style={styles.logStack}>
+        {data.reflections.length === 0 && <DraftCard><Text style={styles.emptyText}>No reflections saved yet.</Text></DraftCard>}
+        {data.reflections.map((reflection) => {
+          const traitNames = reflection.traits.map((traitId) => data.traitOptions.find((trait) => trait.id === traitId)?.name ?? traitId);
+          return (
+            <DraftCard key={reflection.id}>
+              <View style={styles.reflectionTop}>
+                <View style={styles.logCopy}>
+                  <Text style={styles.logDate}>{displayDate(reflection.date)}</Text>
+                  {editingId === reflection.id ? (
+                    <>
+                      <TextInput accessibilityLabel="Reflection text" multiline value={draftText} onChangeText={setDraftText} style={styles.reflectionInput} />
+                      <View style={styles.reflectionEditActions}>
+                        <Pressable accessibilityRole="button" onPress={() => setEditingId(null)} style={styles.reflectionCancel}><Text style={styles.reflectionCancelText}>Cancel</Text></Pressable>
+                        <Pressable accessibilityRole="button" accessibilityState={{ disabled: !draftText.trim() }} disabled={!draftText.trim()} onPress={() => { onUpdateReflection(reflection.id, draftText); setEditingId(null); }} style={styles.reflectionSave}><Text style={styles.reflectionSaveText}>Save</Text></Pressable>
+                      </View>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.reflectionText}>{reflection.text}</Text>
+                      <Pressable accessibilityRole="button" accessibilityLabel={`Edit reflection from ${displayDate(reflection.date)}`} onPress={() => { setEditingId(reflection.id); setDraftText(reflection.text); setDeleteCandidateId(null); }} style={styles.reflectionEdit}><IconGlyph name="create-outline" size={13} color={colors.purple} /><Text style={styles.reflectionEditText}>Edit reflection</Text></Pressable>
+                    </>
+                  )}
+                  {traitNames.length > 0 && <Text style={styles.reflectionTraits}>{traitNames.join(" - ")}</Text>}
+                </View>
+                {deleteCandidateId === reflection.id ? (
+                  <View style={styles.reflectionDeleteActions}>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Cancel deleting reflection" onPress={() => setDeleteCandidateId(null)} style={styles.reflectionCancel}><Text style={styles.reflectionCancelText}>Cancel</Text></Pressable>
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Confirm delete reflection from ${displayDate(reflection.date)}`} onPress={() => { onDeleteReflection(reflection.id); setDeleteCandidateId(null); }} style={styles.reflectionDelete}><Text style={styles.reflectionDeleteText}>Delete</Text></Pressable>
+                  </View>
+                ) : (
+                  <Pressable accessibilityRole="button" accessibilityLabel={`Delete reflection from ${displayDate(reflection.date)}`} onPress={() => setDeleteCandidateId(reflection.id)} style={styles.iconButton}>
+                    <IconGlyph name="trash-outline" size={17} color="#F87171" />
+                  </Pressable>
+                )}
+              </View>
+            </DraftCard>
+          );
+        })}
+      </View>
+    </Screen>
+  );
+}
+
+function CategoryArchive({ data, category, onBack, onOpenHabit, onOpenProject }: {
   data: AppData;
   category: "projects" | "habits";
   onBack: () => void;
-  onOpenRuns: () => void;
+  onOpenHabit: (itemId: string) => void;
+  onOpenProject: (projectId: string) => void;
 }) {
-  const items = category === "projects"
-    ? data.projects.filter((project) => project.goalType !== "habit")
-    : data.projects.filter((project) => project.goalType === "habit");
+  const items: Array<{ id: string; title: string; description: string }> = category === "projects"
+    ? data.projects.filter((project) => project.goalType !== "habit").map((project) => ({ id: project.id, title: project.title, description: project.description }))
+    : data.workItems.filter((item) => item.kind === "habit").map((item) => {
+      const count = data.logs.filter((entry) => entry.itemId === item.id).length;
+      return { id: item.id, title: item.title, description: `${count} logs` };
+    });
 
   return (
     <Screen>
       <DraftStatusBar />
       <Text style={styles.crumb}>Archives / {category === "projects" ? "Projects" : "Habits"}</Text>
       <View style={styles.detailHeader}>
-        <Pressable accessibilityRole="button" onPress={onBack}><IconGlyph name="arrow-back" size={18} color={colors.inkMuted} /></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Back to archives" onPress={onBack} style={styles.iconButton}><IconGlyph name="arrow-back" size={18} color={colors.inkMuted} /></Pressable>
         <IconGlyph name={category === "projects" ? "briefcase-outline" : "repeat-outline"} size={20} />
         <Text style={styles.detailTitle}>{category === "projects" ? "Projects" : "Habits"}</Text>
       </View>
       <View style={styles.logStack}>
-        {(items.length ? items : [{ id: "runs", title: category === "habits" ? "Runs" : "Research project", description: "Active goal" }]).map((item) => (
-          <Pressable key={item.id} onPress={category === "habits" ? onOpenRuns : undefined}>
+        {items.length === 0 && <DraftCard><Text style={styles.emptyText}>Nothing archived in this category yet.</Text></DraftCard>}
+        {items.map((item) => (
+          <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`Open ${item.title}, ${item.description}`} onPress={() => category === "habits" ? onOpenHabit(item.id) : onOpenProject(item.id)}>
             <DraftCard>
               <View style={styles.logTop}>
                 <IconGlyph name={category === "projects" ? "flag-outline" : "walk-outline"} />
@@ -123,187 +217,88 @@ function CategoryArchive({ data, category, onBack, onOpenRuns }: {
   );
 }
 
-function RunsArchive({ data, onUpdateLogNote, onBack }: {
+function HabitArchive({ data, habit, onUpdateLogNote, onBack }: {
   data: AppData;
+  habit?: WorkItem;
   onUpdateLogNote: (logId: string, note: string) => void;
   onBack: () => void;
 }) {
-  const [expandedId, setExpandedId] = useState<string | null>(data.logs[0]?.id ?? null);
+  const archiveLogs = habit ? logsForItem(data, habit.id) : [];
+  const [expandedId, setExpandedId] = useState<string | null>(archiveLogs[0]?.id ?? null);
   const [draftNotes, setDraftNotes] = useState<Record<string, string>>({});
-  const archiveLogs = data.logs.length ? data.logs : logs.map((log, index) => ({ id: `preview-${index}`, itemId: "habit-run", date: log.date, status: index === 2 ? "attempted" as const : "done" as const, note: log.note ? "Felt strong on this run." : undefined, createdAt: new Date().toISOString() }));
+  const [savedId, setSavedId] = useState<string | null>(null);
 
   return (
     <Screen>
       <DraftStatusBar />
-      <Text style={styles.crumb}>Archives / Habits / Runs</Text>
+      <Text style={styles.crumb}>Archives / Habits / {habit?.title ?? "Item"}</Text>
       <View style={styles.detailHeader}>
-        <Pressable accessibilityRole="button" onPress={onBack}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Back to habits" onPress={onBack} style={styles.iconButton}>
           <IconGlyph name="arrow-back" size={18} color={colors.inkMuted} />
         </Pressable>
         <IconGlyph name="walk-outline" size={20} />
         <View>
-          <Text style={styles.detailTitle}>Runs</Text>
-          <Text style={styles.detailMeta}>42 logs</Text>
+          <Text style={styles.detailTitle}>{habit?.title ?? "Habit"}</Text>
+          <Text style={styles.detailMeta}>{archiveLogs.length} logs</Text>
         </View>
       </View>
 
       <View style={styles.logStack}>
+        {archiveLogs.length === 0 && <DraftCard><Text style={styles.emptyText}>No logs recorded for this habit yet.</Text></DraftCard>}
         {archiveLogs.map((log, index) => {
           const expanded = expandedId === log.id;
           const note = draftNotes[log.id] ?? log.note ?? "";
-          return <Pressable key={log.id} onPress={() => setExpandedId(expanded ? null : log.id)}>
-          <DraftCard selected={expanded}>
-            <View style={styles.logTop}>
-              <Dot color={log.status === "done" ? colors.mint : colors.purple} />
-              <View style={styles.logCopy}>
-                <Text style={styles.logTitle}>{index === 2 ? "3K run" : "5K run"}</Text>
-                <Text style={styles.logDate}>{log.date}</Text>
+          return <DraftCard key={log.id} selected={expanded}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`${expanded ? "Collapse" : "Open"} ${habit?.title ?? "habit"} log from ${log.date}`} onPress={() => setExpandedId(expanded ? null : log.id)}>
+              <View style={styles.logTop}>
+                <Dot color={log.status === "done" ? colors.mint : colors.purple} />
+                <View style={styles.logCopy}>
+                  <Text style={styles.logTitle}>{habit?.title ?? "Habit log"}</Text>
+                  <Text style={styles.logDate}>{log.date}</Text>
+                </View>
+                <IconGlyph name={log.note ? "document-text-outline" : "document-outline"} size={14} color={log.note ? colors.purple : colors.inactive} />
               </View>
-              <IconGlyph name={log.note ? "document-text-outline" : "document-outline"} size={14} color={log.note ? colors.purple : colors.inactive} />
-            </View>
+            </Pressable>
             {expanded && (
               <View style={styles.noteBlock}>
-                <Text style={styles.noteLine}>Pace: <Text style={styles.noteValue}>5.2km - 27:40</Text></Text>
+                <Text style={styles.noteLine}>Status: <Text style={styles.noteValue}>{log.status}</Text></Text>
                 <Text style={styles.noteLabel}>NOTE</Text>
                 <TextInput
                   multiline
                   value={note}
-                  onChangeText={(value) => setDraftNotes((current) => ({ ...current, [log.id]: value }))}
-                  placeholder="Add a note about this run..."
+                  onChangeText={(value) => { setDraftNotes((current) => ({ ...current, [log.id]: value })); setSavedId(null); }}
+                  placeholder="Add a note about this entry..."
                   placeholderTextColor={colors.inactive}
                   style={styles.noteInput}
                 />
-                {!log.id.startsWith("preview-") && <DraftButton label="Save note" onPress={() => onUpdateLogNote(log.id, note)} style={styles.saveNote} />}
+                <DraftButton label={savedId === log.id ? "Saved" : "Save note"} onPress={() => { onUpdateLogNote(log.id, note); setSavedId(log.id); }} style={styles.saveNote} />
               </View>
             )}
-          </DraftCard>
-          </Pressable>;
+          </DraftCard>;
         })}
       </View>
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  heading: {
-    marginBottom: 18
-  },
-  title: {
-    color: colors.ink,
-    fontSize: 22,
-    fontWeight: "900"
-  },
-  subtitle: {
-    color: colors.inkMuted,
-    fontSize: 13,
-    fontWeight: "600",
-    marginTop: 2
-  },
-  folderStack: {
-    gap: 12
-  },
-  folder: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    borderRadius: 16,
-    padding: 20
-  },
-  folderCopy: {
-    flex: 1
-  },
-  folderTitle: {
-    color: colors.ink,
-    fontSize: 17,
-    fontWeight: "900"
-  },
-  folderMeta: {
-    color: colors.inkMuted,
-    fontSize: 12,
-    fontWeight: "600",
-    marginTop: 2
-  },
-  crumb: {
-    color: colors.inactive,
-    fontSize: 10.5,
-    fontWeight: "600",
-    marginBottom: 10
-  },
-  detailHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 16
-  },
-  detailTitle: {
-    color: colors.ink,
-    fontSize: 16,
-    fontWeight: "900"
-  },
-  detailMeta: {
-    color: colors.inkMuted,
-    fontSize: 11,
-    fontWeight: "600"
-  },
-  logStack: {
-    gap: 8
-  },
-  logTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10
-  },
-  logCopy: {
-    flex: 1
-  },
-  logTitle: {
-    color: colors.ink,
-    fontSize: 14.5,
-    fontWeight: "900"
-  },
-  logDate: {
-    color: colors.inactive,
-    fontSize: 10.5,
-    fontWeight: "600",
-    marginTop: 2
-  },
-  noteBlock: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.stroke
-  },
-  noteLine: {
-    color: colors.inkMuted,
-    fontSize: 11,
-    fontWeight: "600",
-    marginBottom: 6
-  },
-  noteValue: {
-    color: colors.ink,
-    fontWeight: "900"
-  },
-  noteLabel: {
-    color: colors.inkMuted,
-    fontSize: 10.5,
-    fontWeight: "900",
-    letterSpacing: 1,
-    marginBottom: 6
-  },
-  noteInput: {
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.stroke,
-    backgroundColor: colors.surfaceSoft,
-    color: colors.ink,
-    minHeight: 58,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 13,
-    fontWeight: "600"
-  },
-  saveNote: {
-    alignSelf: "flex-start",
-    marginTop: 8
-  }
-});
+function ProjectArchive({ project, onBack }: { project?: Project; onBack: () => void }) {
+  const milestones = project?.milestones ?? [];
+
+  return (
+    <Screen>
+      <DraftStatusBar />
+      <Text style={styles.crumb}>Archives / Projects / {project?.title ?? "Project"}</Text>
+      <View style={styles.detailHeader}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Back to projects" onPress={onBack} style={styles.iconButton}><IconGlyph name="arrow-back" size={18} color={colors.inkMuted} /></Pressable>
+        <IconGlyph name="flag-outline" size={20} />
+        <View><Text style={styles.detailTitle}>{project?.title ?? "Project"}</Text><Text style={styles.detailMeta}>{milestones.length} milestones</Text></View>
+      </View>
+      <View style={styles.logStack}>
+        {milestones.length === 0 && <DraftCard><Text style={styles.emptyText}>No milestones recorded for this project yet.</Text></DraftCard>}
+        {milestones.map((milestone) => <DraftCard key={milestone.id} dim={milestone.completedAt ? 1 : 0.55}>
+          <View style={styles.logTop}><Dot color={milestone.completedAt ? colors.mint : colors.inactive} /><View style={styles.logCopy}><Text style={styles.logTitle}>{milestone.title}</Text><Text style={styles.logDate}>{milestone.completedAt ?? milestone.timing}</Text></View></View>
+        </DraftCard>)}
+      </View>
+    </Screen>
+  );
+}

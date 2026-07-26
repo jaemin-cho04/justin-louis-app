@@ -1,0 +1,29 @@
+appId: com.justinlouis.progress
+name: Home actions are distinct and functional
+tags:
+  - smoke
+  - interactions
+---
+- runFlow: onboarding-and-navigation.yml
+- tapOn: "Home"
+- tapOn: "Take a BreakDay"
+- assertVisible: "Undo BreakDay"
+- tapOn: "Undo BreakDay"
+- assertVisible: "Take a BreakDay"
+- tapOn: "Add reflection"
+- assertVisible: "New reflection"
+- tapOn: "Close reflection"
+- assertNotVisible: "New reflection"
+- tapOn: "Review missed cards, Attempting. Show details"
+- assertVisible: "No note added."
+- tapOn: "Add task reflection"
+- assertVisible: "For Review missed cards"
+- tapOn: "Reflection"
+- inputText: "I reviewed the missed cards and adjusted the next step."
+- tapOn: "Growth"
+- tapOn: "Save reflection"
+- assertVisible: "1 reflection saved"
+- assertVisible: "I reviewed the missed cards and adjusted the next step."
+- tapOn: "Progress Log"
+- assertVisible: "Progress Log"
+- tapOn: "Close progress log"

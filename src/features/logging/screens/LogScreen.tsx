@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { DateSwitcher } from "../../../shared/components/DateSwitcher";
@@ -13,6 +14,7 @@ type Props = {
   selectedDate: string;
   onDateChange: (date: string) => void;
   onLog: (itemId: string, status: LogStatus) => void;
+  onClear: (itemId: string) => void;
   onClose?: () => void;
 };
 
@@ -24,7 +26,8 @@ const statusButtons: Array<{ status: LogStatus; label: string; color: string }> 
   { status: "deferred", label: "Defer", color: colors.sky }
 ];
 
-export function LogScreen({ data, selectedDate, onDateChange, onLog, onClose }: Props) {
+export function LogScreen({ data, selectedDate, onDateChange, onLog, onClear, onClose }: Props) {
+  const [clearCandidateId, setClearCandidateId] = useState<string | null>(null);
   const items = scheduledItems(data, selectedDate);
   const summary = summarizeDay(data, selectedDate);
 
@@ -32,10 +35,10 @@ export function LogScreen({ data, selectedDate, onDateChange, onLog, onClose }: 
     <Screen>
       <DraftStatusBar />
       <View style={styles.titleRow}>
-        {onClose && <Pressable accessibilityLabel="Close progress log" onPress={onClose}><IconGlyph name="arrow-back" size={19} /></Pressable>}
+        {onClose && <Pressable accessibilityRole="button" accessibilityLabel="Close progress log" onPress={onClose} style={styles.iconButton}><IconGlyph name="arrow-back" size={19} /></Pressable>}
         <Text style={styles.title}>Progress Log</Text>
       </View>
-      <Text style={styles.subtitle}>Retroactive logging is allowed. You stay in control.</Text>
+      <Text style={styles.subtitle}>Tap a status to add or change it. Clear returns an item to open.</Text>
       <DateSwitcher date={selectedDate} onChange={onDateChange} />
 
       <View style={styles.summary}>
@@ -71,6 +74,9 @@ export function LogScreen({ data, selectedDate, onDateChange, onLog, onClose }: 
                   return (
                     <Pressable
                       key={button.status}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${button.label} ${item.title}`}
+                      accessibilityState={{ selected: isSelected }}
                       onPress={() => onLog(item.id, button.status)}
                       style={[
                         styles.statusButton,
@@ -85,6 +91,29 @@ export function LogScreen({ data, selectedDate, onDateChange, onLog, onClose }: 
                   );
                 })}
               </View>
+              {log && (clearCandidateId === item.id ? (
+                <View style={styles.clearConfirm}>
+                  <Text style={styles.clearWarning}>Clear this status and its saved note?</Text>
+                  <View style={styles.clearActions}>
+                    <Pressable accessibilityRole="button" onPress={() => setClearCandidateId(null)} style={styles.cancelButton}>
+                      <Text style={styles.cancelText}>Cancel</Text>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Confirm clear status for ${item.title}`}
+                      onPress={() => { onClear(item.id); setClearCandidateId(null); }}
+                      style={styles.clearButton}
+                    >
+                      <Text style={styles.clearText}>Clear status</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <Pressable accessibilityRole="button" accessibilityLabel={`Clear status for ${item.title}`} onPress={() => setClearCandidateId(item.id)} style={styles.clearLink}>
+                  <IconGlyph name="close-circle-outline" size={15} color={colors.inkMuted} />
+                  <Text style={styles.clearLinkText}>Clear status</Text>
+                </Pressable>
+              ))}
             </View>
           );
         })
@@ -98,6 +127,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12
+  },
+  iconButton: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center"
   },
   title: {
     color: colors.ink,
@@ -172,7 +207,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    minHeight: 38,
+    minHeight: 44,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.stroke,
@@ -191,6 +226,60 @@ const styles = StyleSheet.create({
   },
   selectedLabel: {
     color: colors.ink
+  },
+  clearLink: {
+    minHeight: 44,
+    marginTop: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6
+  },
+  clearLinkText: {
+    color: colors.inkMuted,
+    fontSize: 12,
+    fontWeight: "800"
+  },
+  clearConfirm: {
+    marginTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.stroke,
+    paddingTop: 12
+  },
+  clearWarning: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: "800",
+    marginBottom: 10
+  },
+  clearActions: {
+    flexDirection: "row",
+    gap: 8
+  },
+  cancelButton: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.stroke,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  cancelText: {
+    color: colors.inkMuted,
+    fontWeight: "900"
+  },
+  clearButton: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 10,
+    backgroundColor: colors.coral,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  clearText: {
+    color: colors.surfaceSoft,
+    fontWeight: "900"
   },
   empty: {
     backgroundColor: colors.surface,

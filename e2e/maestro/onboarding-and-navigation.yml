@@ -1,0 +1,22 @@
+appId: com.justinlouis.progress
+name: Onboarding and every primary destination
+tags:
+  - smoke
+---
+- launchApp:
+    clearState: true
+- assertVisible: "Build quiet progress with your close circle."
+- tapOn: "Name"
+- inputText: "QA User"
+- tapOn: "Handle"
+- inputText: "qa_user"
+- tapOn: "Start tracking"
+- assertVisible: "THIS WEEK"
+- tapOn: "Goals"
+- assertVisible: "Goals"
+- tapOn: "Friends"
+- assertVisible: "Manage"
+- tapOn: "Archives"
+- assertVisible: "Archives"
+- tapOn: "You"
+- assertVisible: "Edit profile"

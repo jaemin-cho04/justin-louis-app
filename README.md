@@ -9,10 +9,12 @@ Built with Expo, React Native, and TypeScript, the current prototype runs on iOS
 - **Home dashboard** with weekly progress, daily breakdowns, and bounded day navigation.
 - **Progress Log** for marking scheduled work as done, attempted, missed, skipped, or deferred.
 - **Goals** for creating recurring habits or finite projects with editable milestone lists.
-- **Friends** with personal progress bars, shared task details, and persisted task comments.
+- **Friends and collaboration** with account-backed requests, invite codes, shared-project roles, and persisted comments.
 - **Archives** organized by projects and habits, including drill-down history and editable notes.
 - **You** profile with personal statistics, profile editing, notification preferences, privacy information, and local-data reset.
-- **Local persistence** through SQLite on native devices and local storage on the web.
+- **Offline-first synchronization** through local SQLite plus an optional Supabase repository with versioned snapshots and RLS.
+- **Privacy tooling** for portable JSON export, private media uploads, sign-out, and permanent account deletion.
+- **Operations** through Sentry crash reporting, GitHub CI, EAS builds, Maestro journeys, and approval-gated store submission.
 - **Responsive layout** with safe-area and home-indicator support across iPhone sizes.
 
 ## Product Principles
@@ -30,6 +32,9 @@ Built with Expo, React Native, and TypeScript, the current prototype runs on iOS
 - React 19
 - TypeScript
 - Expo SQLite
+- Supabase Auth, Postgres, Storage, and Edge Functions
+- Expo Notifications and EAS Workflows
+- Sentry React Native
 - React Native Safe Area Context
 - Expo Vector Icons
 
@@ -75,7 +80,7 @@ Run the full local verification suite:
 npm run verify
 ```
 
-This runs TypeScript checking, source-size and brand-configuration checks, and progress-selector tests.
+This runs TypeScript checking, source-size, brand, accessibility and architecture-boundary checks, CRUD/data-migration tests, and a 10,000-record performance budget.
 
 Create an export bundle when checking production bundling:
 
@@ -90,15 +95,17 @@ src/
   config/      Brand configuration and feature flags
   domain/      Models, fixtures, and progress selectors
   features/    Home, logging, goals, friends, archives, and profile screens
-  services/    Persistent storage and app-state actions
+  services/    Auth, storage, sync, social, media, notifications, privacy, and monitoring
   shared/      Reusable UI, theme tokens, and date utilities
   shell/       Application shell and tab routing
 ```
 
 The older static HTML/CSS/JavaScript prototype remains in the repository as an early design and architecture reference. The Expo app under `src/` is the active implementation.
 
-## Current Status
+See [`docs/SYSTEM_DESIGN.md`](docs/SYSTEM_DESIGN.md) for the end-to-end client, synchronization, backend, security, reliability, scaling, and deployment design. Layer-specific implementation rules remain in [`src/ARCHITECTURE.md`](src/ARCHITECTURE.md).
 
-This repository contains a functional local-first prototype. Core interactions persist on the device, but friend data is still simulated and there is no remote account, authentication, synchronization, notification delivery, or production backend yet.
+## Remote development
 
-Likely next steps include editing existing goals, friend invitations and account management, backend synchronization, media support, richer archive filtering, and production notification flows.
+Copy `.env.example` to `.env`, create a Supabase project, and fill in its URL and publishable key. Apply `supabase/migrations`, deploy all functions under `supabase/functions`, and set the EAS project ID. Without these values, the app deliberately stays in fully functional local mode.
+
+The app is production-capable in code, but release activation still requires owned external accounts and secrets: Supabase deployment, Sentry project, Expo/EAS project, Android FCM credentials, Apple/Google developer memberships, store listings, privacy-policy/support URLs, and real-device acceptance testing. See `docs/PRODUCTION_RUNBOOK.md`.

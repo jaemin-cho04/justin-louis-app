@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 
 import {
   Dot,
@@ -10,7 +11,8 @@ import {
 } from "../../../shared/components/DraftUI";
 import { Screen } from "../../../shared/components/Screen";
 import { colors } from "../../../shared/theme/colors";
-import { offsetDateKey, parseDateKey, todayKey } from "../../../shared/utils/dates";
+import { isBreakDay, logForItem, scheduledItems, summarizeWeek } from "../../../domain/selectors/progress";
+import { formatBreakdownLabel, offsetDateKey, parseDateKey, todayKey, weekKeys } from "../../../shared/utils/dates";
 import type { AppData } from "../../../domain/model/types";
 
 type Props = {
@@ -19,117 +21,176 @@ type Props = {
   onDateChange: (date: string) => void;
   onToggleBreakDay: () => void;
   onOpenLog: () => void;
-  onOpenReflection: () => void;
+  onOpenReflection: (context?: { itemId: string; projectId: string; title: string }) => void;
 };
 
-const expandedTask = {
-  icon: "walk-outline" as const,
-  title: "Runs",
-  status: "Done",
-  color: colors.mint,
-  progress: 100,
-  target: "5km run",
-  logged: "5.2km - 27:40",
-  note: "Felt strong on the last km, legs still a bit sore from Saturday."
-};
-
-const compressedTasks = [
-  {
-    icon: "book-outline" as const,
-    title: "Study 2hrs",
-    color: colors.purple,
-    progress: 55,
-    dim: 0.55
-  },
-  {
-    icon: "briefcase-outline" as const,
-    title: "Jobs",
-    color: colors.inactive,
-    progress: 0,
-    dim: 0.3
-  }
-];
-
-export function HomeScreen({ data, selectedDate, onDateChange, onOpenLog }: Props) {
+export function HomeScreen({ data, selectedDate, onDateChange, onToggleBreakDay, onOpenLog, onOpenReflection }: Props) {
   const profile = data.currentUser.profile;
+  const { height } = useWindowDimensions();
+  const compactHeight = height < 820;
   const name = profile.name || "Cho";
   const today = todayKey();
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const taskStackOffset = useRef(0);
+  const itemOffsets = useRef<Record<string, number>>({});
   const dayOffset = Math.round((parseDateKey(selectedDate).getTime() - parseDateKey(today).getTime()) / 86400000);
-  const breakdownLabel = dayOffset === 0 ? "TODAY'S BREAKDOWN" : dayOffset === -1 ? "YESTERDAY'S BREAKDOWN" : dayOffset === 1 ? "TOMORROW'S BREAKDOWN" : `${parseDateKey(selectedDate).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }).toUpperCase()} BREAKDOWN`;
+  const breakdownLabel = formatBreakdownLabel(selectedDate, today);
+  const items = scheduledItems(data, selectedDate);
+  const breakDay = isBreakDay(data, selectedDate);
+  const selectedId = items.some((item) => item.id === selectedItemId) ? selectedItemId : null;
+  const week = summarizeWeek(data);
+  const weekItemCount = weekKeys().reduce((count, date) => count + scheduledItems(data, date).length, 0);
+  const completion = Math.round(week.completion * 100);
+
+  useEffect(() => {
+    setSelectedItemId(null);
+  }, [selectedDate]);
 
   return (
-    <Screen>
+    <Screen scrollRef={scrollRef}>
       <DraftStatusBar />
-      <View style={styles.heading}>
+      <View style={[styles.heading, compactHeight && styles.headingCompact]}>
         <Text style={styles.title}>Hi {name}</Text>
-        <Text style={styles.subtitle}>Monday, 1 June - {profile.termLabel || "Summer term"}</Text>
+        <Text style={styles.subtitle}>{parseDateKey(today).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })} - {profile.termLabel || "Summer term"}</Text>
       </View>
 
-      <DraftCard style={styles.hero}>
+      <DraftCard style={[styles.hero, compactHeight && styles.heroCompact]}>
         <Text style={styles.eyebrow}>THIS WEEK</Text>
         <View style={styles.percentRow}>
-          <Text style={styles.percent}>62</Text>
+          <Text style={styles.percent}>{completion}</Text>
           <Text style={styles.percentMark}>%</Text>
         </View>
-        <SegmentBar done={44} attempted={18} open={38} height={14} style={styles.weekBar} />
+        <SegmentBar done={week.doneWeight} attempted={week.attemptedWeight} open={week.openWeight + week.missedWeight} height={14} style={styles.weekBar} />
         <View style={styles.legend}>
-          <Text style={styles.legendText}><Text style={styles.doneText}>18</Text> done</Text>
-          <Text style={styles.legendText}><Text style={styles.purpleText}>6</Text> attempting</Text>
-          <Text style={styles.legendText}><Text style={styles.dimText}>11</Text> remaining</Text>
+          <Text style={styles.legendText}><Text style={styles.doneText}>{week.doneWeight}</Text> done</Text>
+          <Text style={styles.legendText}><Text style={styles.purpleText}>{week.attemptedWeight}</Text> attempting</Text>
+          <Text style={styles.legendText}><Text style={styles.dimText}>{week.openWeight + week.missedWeight}</Text> remaining</Text>
         </View>
-        <Text style={styles.footnote}>35 tasks scheduled this week</Text>
+        <Text style={styles.footnote}>{weekItemCount} tasks scheduled this week</Text>
       </DraftCard>
 
+      <View style={[styles.actionStack, compactHeight && styles.actionStackCompact]}>
+        <DraftButton label={breakDay ? "Undo BreakDay" : "Take a BreakDay"} icon="moon-outline" onPress={onToggleBreakDay} />
+        <DraftButton label="Progress Log" primary onPress={onOpenLog} />
+        <DraftButton label="Add reflection" icon="create-outline" onPress={onOpenReflection} />
+      </View>
+
       <View style={styles.breakdownHeader}>
-        <Pressable accessibilityRole="button" disabled={dayOffset <= -2} onPress={() => onDateChange(offsetDateKey(selectedDate, -1))}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Previous day" disabled={dayOffset <= -2} onPress={() => onDateChange(offsetDateKey(selectedDate, -1))} style={styles.dayButton}>
           <IconGlyph name="chevron-back" size={14} color={dayOffset <= -2 ? colors.stroke : colors.inactive} />
         </Pressable>
         <Text style={styles.eyebrow}>{breakdownLabel}</Text>
-        <Pressable accessibilityRole="button" disabled={dayOffset >= 2} onPress={() => onDateChange(offsetDateKey(selectedDate, 1))}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Next day" disabled={dayOffset >= 2} onPress={() => onDateChange(offsetDateKey(selectedDate, 1))} style={styles.dayButton}>
           <IconGlyph name="chevron-forward" size={14} color={dayOffset >= 2 ? colors.stroke : colors.inactive} />
         </Pressable>
       </View>
+      {items.length > 0 && <Text style={styles.breakdownHint}>Tap a task to show or hide its details.</Text>}
 
-      <View style={styles.taskStack}>
-        <DraftCard selected>
-          <View style={styles.taskTop}>
-            <Dot color={expandedTask.color} />
-            <IconGlyph name={expandedTask.icon} size={16} />
-            <Text style={styles.taskTitle}>{expandedTask.title}</Text>
-            <Text style={styles.statusDone}>{expandedTask.status}</Text>
-          </View>
-          <View style={styles.miniTrack}>
-            <View style={[styles.miniFill, { width: `${expandedTask.progress}%`, backgroundColor: expandedTask.color }]} />
-          </View>
-          <View style={styles.details}>
-            <Text style={styles.detailLine}>Target: <Text style={styles.detailValue}>{expandedTask.target}</Text></Text>
-            <Text style={styles.detailLine}>Logged: <Text style={styles.detailValue}>{expandedTask.logged}</Text></Text>
-            <Text style={styles.detailLine}>Note: <Text style={styles.detailNote}>{expandedTask.note}</Text></Text>
-          </View>
-        </DraftCard>
-
-        {compressedTasks.map((task) => (
-          <DraftCard key={task.title} dim={task.dim}>
+      <View
+        style={[styles.taskStack, compactHeight && styles.taskStackCompact]}
+        onLayout={(event) => { taskStackOffset.current = event.nativeEvent.layout.y; }}
+      >
+        {breakDay && (
+          <DraftCard selected style={styles.breakCard}>
             <View style={styles.taskTop}>
-              <Dot color={task.color} />
-              <IconGlyph name={task.icon} size={16} />
-              <Text style={styles.taskTitle}>{task.title}</Text>
-            </View>
-            <View style={styles.miniTrack}>
-              <View style={[styles.miniFill, { width: `${task.progress}%`, backgroundColor: task.color }]} />
+              <IconGlyph name="moon-outline" size={17} color={colors.sky} />
+              <View style={styles.breakCopy}>
+                <Text style={styles.taskTitle}>BreakDay</Text>
+                <Text style={styles.breakText}>Unlogged work stays neutral so rest does not count as failure.</Text>
+              </View>
             </View>
           </DraftCard>
-        ))}
+        )}
+        {items.length === 0 && <DraftCard><Text style={styles.emptyText}>Nothing scheduled for this day.</Text></DraftCard>}
+        {items.map((item, index) => {
+          const log = logForItem(data, item.id, selectedDate);
+          const status = log?.status ?? (breakDay ? "deferred" : dayOffset < 0 ? "missed" : "open");
+          const active = item.id === selectedId;
+          const color = status === "done" ? colors.mint : status === "attempted" ? colors.purple : colors.inactive;
+          const progress = status === "done" ? 100 : status === "attempted" ? 55 : 0;
+          const project = data.projects.find((candidate) => candidate.id === item.projectId);
+          const linkedReflections = data.reflections.filter((reflection) => reflection.itemId === item.id);
+          const latestReflection = linkedReflections[0];
+
+          return (
+            <View key={item.id} onLayout={(event) => { itemOffsets.current[item.id] = event.nativeEvent.layout.y; }}>
+            <DraftCard selected={active} dim={active ? 1 : Math.max(0.55, 0.85 - index * 0.08)}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${item.title}, ${statusLabel(status)}. ${active ? "Hide" : "Show"} details`}
+                accessibilityState={{ expanded: active }}
+                onPress={() => setSelectedItemId((current) => {
+                  const next = current === item.id ? null : item.id;
+                  if (next) {
+                    requestAnimationFrame(() => scrollRef.current?.scrollTo({
+                      y: Math.max(0, taskStackOffset.current + (itemOffsets.current[item.id] ?? 0) - 280),
+                      animated: true
+                    }));
+                  }
+                  return next;
+                })}
+                style={({ pressed }) => pressed && styles.taskPressed}
+              >
+                <View style={styles.taskTop}>
+                  <Dot color={color} />
+                  <IconGlyph name={item.kind === "habit" ? "repeat-outline" : "flag-outline"} size={16} />
+                  <Text style={styles.taskTitle}>{item.title}</Text>
+                  {active && <Text style={[styles.statusDone, { color }]}>{statusLabel(status)}</Text>}
+                  <IconGlyph name={active ? "chevron-up" : "chevron-down"} size={15} color={colors.inactive} />
+                </View>
+                <View style={styles.miniTrack}><View style={[styles.miniFill, { width: `${progress}%`, backgroundColor: color }]} /></View>
+              </Pressable>
+              {active && <View style={styles.details}>
+                  <Text style={styles.detailLine}>Goal: <Text style={styles.detailValue}>{project?.title ?? "Unassigned"}</Text></Text>
+                  <Text style={styles.detailLine}>Effort: <Text style={styles.detailValue}>{item.effort}</Text></Text>
+                  <Text style={styles.detailLine}>Note: <Text style={styles.detailNote}>{log?.note || "No note added."}</Text></Text>
+                  {latestReflection && (
+                    <View style={styles.reflectionSummary}>
+                      <Text style={styles.reflectionCount}>{linkedReflections.length} {linkedReflections.length === 1 ? "reflection" : "reflections"} saved</Text>
+                      <Text numberOfLines={2} style={styles.reflectionPreview}>{latestReflection.text}</Text>
+                    </View>
+                  )}
+                  <DraftButton
+                    label="Add task reflection"
+                    icon="create-outline"
+                    onPress={() => onOpenReflection({ itemId: item.id, projectId: item.projectId, title: item.title })}
+                    style={styles.reflectionButton}
+                  />
+                </View>}
+            </DraftCard>
+            </View>
+          );
+        })}
       </View>
 
-      <DraftButton label="Progress Log" onPress={onOpenLog} style={styles.logButton} />
     </Screen>
   );
 }
 
+function statusLabel(status: "done" | "attempted" | "missed" | "skipped" | "deferred" | "open"): string {
+  return ({
+    done: "Done",
+    attempted: "Attempting",
+    missed: "Missed",
+    skipped: "Skipped",
+    deferred: "Deferred",
+    open: "Not started"
+  })[status];
+}
+
 const styles = StyleSheet.create({
+  dayButton: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center"
+  },
   heading: {
     marginBottom: 18
+  },
+  headingCompact: {
+    marginBottom: 10
   },
   title: {
     color: colors.ink,
@@ -147,6 +208,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 20,
     marginBottom: 20
+  },
+  heroCompact: {
+    paddingVertical: 14,
+    marginBottom: 12
   },
   eyebrow: {
     color: colors.inkMuted,
@@ -208,14 +273,44 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 8
   },
+  breakdownHint: {
+    color: colors.inactive,
+    fontSize: 11,
+    fontWeight: "600",
+    marginBottom: 10
+  },
   taskStack: {
     gap: 8,
     marginBottom: 16
+  },
+  taskStackCompact: {
+    gap: 6,
+    marginBottom: 10
+  },
+  breakCard: {
+    borderColor: colors.sky
+  },
+  breakCopy: {
+    flex: 1
+  },
+  breakText: {
+    color: colors.inkMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 3
+  },
+  emptyText: {
+    color: colors.inkMuted,
+    fontSize: 13,
+    textAlign: "center"
   },
   taskTop: {
     flexDirection: "row",
     alignItems: "center",
     gap: 9
+  },
+  taskPressed: {
+    opacity: 0.75
   },
   taskTitle: {
     color: colors.ink,
@@ -258,7 +353,32 @@ const styles = StyleSheet.create({
     color: colors.whiteMuted,
     fontWeight: "600"
   },
-  logButton: {
+  reflectionSummary: {
+    borderLeftWidth: 2,
+    borderLeftColor: colors.purple,
+    paddingLeft: 10,
+    marginTop: 4,
+    gap: 2
+  },
+  reflectionCount: {
+    color: colors.purple,
+    fontSize: 11,
+    fontWeight: "900"
+  },
+  reflectionPreview: {
+    color: colors.inkMuted,
+    fontSize: 12,
+    lineHeight: 17
+  },
+  reflectionButton: {
+    marginTop: 6
+  },
+  actionStack: {
+    gap: 12,
     marginBottom: 18
+  },
+  actionStackCompact: {
+    gap: 10,
+    marginBottom: 28
   }
 });

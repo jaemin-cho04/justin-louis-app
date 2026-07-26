@@ -11,14 +11,14 @@ type Props = {
 export function DateSwitcher({ date, onChange }: Props) {
   return (
     <View style={styles.wrap}>
-      <Pressable style={styles.button} onPress={() => onChange(offsetDateKey(date, -1))}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Previous log date" style={styles.button} onPress={() => onChange(offsetDateKey(date, -1))}>
         <Text style={styles.buttonText}>Prev</Text>
       </Pressable>
-      <Pressable style={styles.current} onPress={() => onChange(todayKey())}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Return to today" style={styles.current} onPress={() => onChange(todayKey())}>
         <Text style={styles.date}>{displayDate(date)}</Text>
         <Text style={styles.today}>Tap for today</Text>
       </Pressable>
-      <Pressable style={styles.button} onPress={() => onChange(offsetDateKey(date, 1))}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Next log date" style={styles.button} onPress={() => onChange(offsetDateKey(date, 1))}>
         <Text style={styles.buttonText}>Next</Text>
       </Pressable>
     </View>

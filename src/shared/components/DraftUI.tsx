@@ -9,9 +9,7 @@ type IconName = keyof typeof Ionicons.glyphMap;
 export function DraftStatusBar() {
   return (
     <View style={styles.statusbar}>
-      <Text style={styles.statusText}>9:41</Text>
       <Text style={styles.wordmark}>PROGRESS</Text>
-      <Ionicons name="settings-outline" size={16} color="#6E6E76" />
     </View>
   );
 }
@@ -83,6 +81,7 @@ export function DraftButton({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={label}
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
@@ -91,7 +90,7 @@ export function DraftButton({
         style
       ]}
     >
-      {icon && <Ionicons name={icon} size={13} color={primary ? colors.surfaceSoft : colors.purple} />}
+      {icon && <Ionicons accessible={false} name={icon} size={13} color={primary ? colors.surfaceSoft : colors.purple} />}
       <Text style={[styles.buttonText, primary && styles.buttonPrimaryText]}>{label}</Text>
     </Pressable>
   );
@@ -106,20 +105,15 @@ export function IconGlyph({ name, size = 17, color = colors.whiteMuted }: {
   size?: number;
   color?: string;
 }) {
-  return <Ionicons name={name} size={size} color={color} />;
+  return <Ionicons accessible={false} name={name} size={size} color={color} />;
 }
 
 const styles = StyleSheet.create({
   statusbar: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
     marginBottom: 18
-  },
-  statusText: {
-    color: "#6E6E76",
-    fontSize: 12,
-    fontWeight: "600"
   },
   wordmark: {
     color: colors.purple,
@@ -131,8 +125,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.stroke,
-    borderRadius: 14,
-    padding: 14
+    borderRadius: 16,
+    padding: 16
   },
   cardSelected: {
     borderColor: colors.inkMuted
@@ -186,10 +180,10 @@ const styles = StyleSheet.create({
     fontSize: 28
   },
   button: {
-    minHeight: 42,
+    minHeight: 48,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#333338",
+    borderColor: colors.stroke,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
@@ -201,7 +195,7 @@ const styles = StyleSheet.create({
     borderColor: colors.purple
   },
   buttonText: {
-    color: colors.inkMuted,
+    color: colors.whiteMuted,
     fontSize: 13,
     fontWeight: "900"
   },

@@ -16,6 +16,16 @@ export type FriendshipStatus = "pending" | "accepted" | "blocked";
 
 export type ReactionType = "cheer" | "credit" | "critique";
 
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
+export type EntityMetadata = {
+  version?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  tags?: string[];
+  custom?: Record<string, JsonValue>;
+};
+
 export type InsightKind =
   | "bestWeekday"
   | "consistentProject"
@@ -29,6 +39,7 @@ export type UserProfile = {
   termLabel: string;
   termEndDate?: string;
   photoUri?: string;
+  photoStoragePath?: string;
 };
 
 export type NotificationPreferences = {
@@ -63,6 +74,8 @@ export type Project = {
   target?: string;
   duration?: string;
   milestones?: Milestone[];
+  goalWorkItemId?: string;
+  metadata?: EntityMetadata;
 };
 
 export type Milestone = {
@@ -89,7 +102,10 @@ export type WorkItem = {
   effort: 1 | 2 | 3;
   dueDate?: string;
   weekdays?: Weekday[];
+  recurrenceCadence?: "Daily" | "Weekly" | "Monthly";
+  monthlyDay?: number;
   isArchived?: boolean;
+  metadata?: EntityMetadata;
 };
 
 export type LogEntry = {
@@ -103,6 +119,7 @@ export type LogEntry = {
   timezone?: string;
   mediaIds?: string[];
   createdAt: string;
+  metadata?: EntityMetadata;
 };
 
 export type Reflection = {
@@ -114,6 +131,7 @@ export type Reflection = {
   projectId?: string;
   mediaIds?: string[];
   createdAt: string;
+  metadata?: EntityMetadata;
 };
 
 export type Trait = {
@@ -132,6 +150,7 @@ export type Friend = {
   feedbackMode: FriendFeedbackMode;
   focus: string;
   lastSignal: string;
+  metadata?: EntityMetadata;
 };
 
 export type Friendship = {
@@ -199,4 +218,5 @@ export type AppData = {
   achievements: Achievement[];
   breakDays: BreakDay[];
   traitOptions: Trait[];
+  customFields?: Record<string, JsonValue>;
 };

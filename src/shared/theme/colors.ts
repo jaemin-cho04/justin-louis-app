@@ -11,7 +11,7 @@ export const colors = {
   lavender: brandConfig.secondaryColor,
   mint: "#1DE87E",
   amber: "#F5BA41",
-  coral: "#5A5A61",
+  coral: "#F87171",
   sky: "#3B82F6",
   slate: "#2C2C31",
   darkSurface: "#0A0A0C",

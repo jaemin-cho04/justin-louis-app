@@ -1,0 +1,22 @@
+appId: com.justinlouis.progress
+name: Create, edit, and delete a goal
+tags:
+  - crud
+---
+- runFlow: onboarding-and-navigation.yml
+- tapOn: "Goals"
+- tapOn: "New goal"
+- tapOn: "Goal title"
+- inputText: "Automated QA goal"
+- tapOn: "Create goal"
+- assertVisible: "Automated QA goal"
+- tapOn: "Edit Automated QA goal"
+- tapOn: "Goal title"
+- eraseText
+- inputText: "Edited QA goal"
+- tapOn: "Save changes"
+- assertVisible: "Edited QA goal"
+- tapOn: "Edit Edited QA goal"
+- tapOn: "Delete goal"
+- tapOn: "Delete permanently"
+- assertNotVisible: "Edited QA goal"

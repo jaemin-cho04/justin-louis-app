@@ -7,8 +7,10 @@
   },
   "exclude": [
     "dist",
+    "dist-*",
     "dist-web",
     "node_modules",
+    "supabase/functions",
     "tmp"
   ]
 }

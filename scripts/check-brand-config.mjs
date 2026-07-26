@@ -6,8 +6,16 @@ const searchRoots = ["src", "README.md", "package.json", "app.config.js"];
 const bannedTerms = [`Su${"mmit"}`, `su${"mmit"}`];
 const failures = [];
 
-if (brandConfig.appDisplayName !== "") {
-  failures.push("src/config/brand.json: appDisplayName must stay blank until the final name is chosen.");
+for (const key of ["appDisplayName", "appSlug", "urlScheme", "iosBundleId", "androidPackage", "storageNamespace"]) {
+  if (typeof brandConfig[key] !== "string" || !brandConfig[key].trim()) {
+    failures.push(`src/config/brand.json: ${key} must be configured.`);
+  }
+}
+
+if (!/^[a-z][a-z0-9-]*$/.test(brandConfig.appSlug)) failures.push("src/config/brand.json: appSlug must be store-safe lowercase text.");
+if (!/^[a-z][a-z0-9+.-]*$/.test(brandConfig.urlScheme)) failures.push("src/config/brand.json: urlScheme must be a valid custom URL scheme.");
+if (![brandConfig.iosBundleId, brandConfig.androidPackage].every((value) => /^(?:[A-Za-z][A-Za-z0-9_]*\.)+[A-Za-z][A-Za-z0-9_]*$/.test(value))) {
+  failures.push("src/config/brand.json: native package identifiers must use reverse-domain notation.");
 }
 
 for (const file of searchRoots.flatMap((root) => listFiles(root))) {

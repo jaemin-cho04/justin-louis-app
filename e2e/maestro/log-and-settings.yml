@@ -1,0 +1,20 @@
+appId: com.justinlouis.progress
+name: Log progress and inspect account controls
+tags:
+  - lifecycle
+---
+- runFlow: onboarding-and-navigation.yml
+- tapOn: "Home"
+- tapOn: "Progress Log"
+- assertVisible: "Progress Log"
+- tapOn:
+    text: "Done .*"
+    index: 0
+- tapOn: "Close progress log"
+- tapOn: "You"
+- tapOn: "Notifications"
+- assertVisible: "Weekly planning"
+- tapOn: "Close settings"
+- tapOn: "Privacy"
+- assertVisible: "Export my data"
+- assertVisible: "Reset app data"

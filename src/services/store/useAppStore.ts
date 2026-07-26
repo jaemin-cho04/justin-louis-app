@@ -1,343 +1,135 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppState } from "react-native";
 
-import { loadAppData, resetAppData, saveAppData } from "../storage/appDataRepository";
-import { scheduledItems } from "../../domain/selectors/progress";
+import { seedData } from "../../domain/fixtures/seed";
+import type { AppData } from "../../domain/model/types";
 import { todayKey } from "../../shared/utils/dates";
-import { projectColors } from "../../shared/theme/colors";
-import type { AppData, LogStatus, Milestone, Project, UserProfile, Visibility } from "../../domain/model/types";
+import { sqliteAppDataRepository, type AppDataRepository, type DataDiagnostic } from "../storage/appDataRepository";
+import { createAppActions } from "./appActions";
 
-type DraftProject = {
-  title: string;
-  description: string;
-  goalType?: "habit" | "project";
-  cadence?: "Daily" | "Weekly" | "Monthly";
-  tracking?: string;
-  target?: string;
-  duration?: string;
-  milestones?: Array<Omit<Milestone, "id">>;
+export type PersistenceState = {
+  status: "loading" | "saving" | "saved" | "error";
+  lastSavedAt?: string;
+  message?: string;
+  revision?: number;
+  diagnostics: DataDiagnostic[];
 };
 
-const makeId = (prefix: string) => `${prefix}-${Date.now()}`;
-
-export function useAppStore() {
+export function useAppStore(repository: AppDataRepository = sqliteAppDataRepository) {
   const [data, setData] = useState<AppData | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayKey());
   const [isReady, setIsReady] = useState(false);
+  const [persistence, setPersistence] = useState<PersistenceState>({ status: "loading", diagnostics: [] });
+  const saveRequest = useRef(0);
+  const dataRef = useRef<AppData | null>(null);
+  const latestRemoteRevision = useRef(0);
+  const skipNextSave = useRef(false);
+  dataRef.current = data;
 
   useEffect(() => {
-    loadAppData()
-      .then(setData)
+    repository.load()
+      .then((snapshot) => {
+        setData(snapshot.data);
+        latestRemoteRevision.current = snapshot.diagnostics.some((item) => item.code === "remote_unavailable") ? 0 : snapshot.revision;
+        setPersistence({ status: "saved", revision: snapshot.revision, diagnostics: snapshot.diagnostics });
+      })
+      .catch((error: unknown) => {
+        if (__DEV__) console.error("Failed to load saved app data; using defaults.", error);
+        setData(seedData);
+        setPersistence({
+          status: "error",
+          message: errorMessage(error, "Unable to load saved app data."),
+          diagnostics: [{ code: "storage_parse_failed", severity: "error", message: "The data repository failed to load." }]
+        });
+      })
       .finally(() => setIsReady(true));
-  }, []);
+  }, [repository]);
 
   useEffect(() => {
-    if (data) {
-      void saveAppData(data);
+    if (!data) return;
+    if (skipNextSave.current) {
+      skipNextSave.current = false;
+      return;
     }
-  }, [data]);
+
+    const request = ++saveRequest.current;
+    setPersistence((current) => ({ ...current, status: "saving", message: undefined }));
+    void repository.save(data)
+      .then((receipt) => {
+        if (request === saveRequest.current) {
+          if (!receipt.diagnostics?.some((item) => item.code === "sync_pending")) {
+            latestRemoteRevision.current = Math.max(latestRemoteRevision.current, receipt.revision);
+          }
+          setPersistence((current) => ({
+            status: "saved",
+            lastSavedAt: receipt.savedAt,
+            revision: receipt.revision,
+            diagnostics: receipt.diagnostics?.length
+              ? [...nonSyncDiagnostics(current.diagnostics), ...receipt.diagnostics]
+              : nonSyncDiagnostics(current.diagnostics)
+          }));
+        }
+      })
+      .catch((error: unknown) => {
+        if (request === saveRequest.current) {
+          setPersistence((current) => ({
+            ...current,
+            status: "error",
+            message: errorMessage(error, "Unable to save app data.")
+          }));
+        }
+      });
+  }, [data, repository]);
+
+  useEffect(() => repository.subscribe?.((snapshot) => {
+    if (snapshot.revision <= latestRemoteRevision.current) return;
+    latestRemoteRevision.current = snapshot.revision;
+    skipNextSave.current = true;
+    setData(snapshot.data);
+    setPersistence({ status: "saved", lastSavedAt: snapshot.updatedAt, revision: snapshot.revision, diagnostics: snapshot.diagnostics });
+  }), [repository]);
+
+  useEffect(() => {
+    if (!repository.synchronize) return;
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state !== "active" || !dataRef.current) return;
+      void repository.synchronize?.(dataRef.current).then((receipt) => {
+        setPersistence((current) => ({
+          ...current,
+          status: "saved",
+          lastSavedAt: receipt.savedAt,
+          revision: receipt.revision,
+          diagnostics: nonSyncDiagnostics(current.diagnostics)
+        }));
+      }).catch((error: unknown) => {
+        setPersistence((current) => ({ ...current, diagnostics: [
+          ...nonSyncDiagnostics(current.diagnostics),
+          { code: "sync_pending", severity: "warning", message: errorMessage(error, "Background synchronization will retry.") }
+        ] }));
+      });
+    });
+    return () => subscription.remove();
+  }, [repository]);
 
   const update = useCallback((recipe: (current: AppData) => AppData) => {
-    setData((current) => (current ? recipe(current) : current));
+    setData((current) => current ? recipe(current) : current);
   }, []);
+  const replace = useCallback((nextData: AppData) => setData(nextData), []);
 
-  const actions = useMemo(
-    () => ({
-      completeOnboarding(profile: UserProfile) {
-        update((current) => ({
-          ...current,
-          hasOnboarded: true,
-          currentUser: {
-            ...current.currentUser,
-            profile
-          }
-        }));
-      },
-      logItem(itemId: string, status: LogStatus, note?: string) {
-        update((current) => upsertLog(current, itemId, selectedDate, status, note));
-      },
-      toggleBreakDay() {
-        update((current) => {
-          const exists = current.breakDays.some((day) => day.date === selectedDate);
-
-          if (exists) {
-            return {
-              ...current,
-              breakDays: current.breakDays.filter((day) => day.date !== selectedDate),
-              logs: current.logs.filter(
-                (entry) => !(entry.date === selectedDate && entry.status === "deferred")
-              )
-            };
-          }
-
-          const now = new Date().toISOString();
-          const deferredLogs = scheduledItems(current, selectedDate).map((item) => ({
-            id: makeId(`deferred-${item.id}`),
-            itemId: item.id,
-            date: selectedDate,
-            status: "deferred" as const,
-            note: "BreakDay deferred this item.",
-            timezone: current.currentUser.timezone,
-            createdAt: now
-          }));
-
-          return {
-            ...current,
-            breakDays: [...current.breakDays, { date: selectedDate, reason: "Guilt-free rest" }],
-            logs: [
-              ...current.logs.filter(
-                (entry) => !deferredLogs.some((log) => log.itemId === entry.itemId && log.date === entry.date)
-              ),
-              ...deferredLogs
-            ]
-          };
-        });
-      },
-      addReflection(text: string, traits: string[]) {
-        const cleanText = text.trim();
-
-        if (!cleanText) {
-          return;
-        }
-
-        update((current) => ({
-          ...current,
-          reflections: [
-            {
-              id: makeId("reflection"),
-              date: selectedDate,
-              text: cleanText,
-              traits,
-              createdAt: new Date().toISOString()
-            },
-            ...current.reflections
-          ]
-        }));
-      },
-      deleteReflection(reflectionId: string) {
-        update((current) => ({
-          ...current,
-          reflections: current.reflections.filter((reflection) => reflection.id !== reflectionId)
-        }));
-      },
-      setProjectVisibility(projectId: string, visibility: Visibility) {
-        update((current) => ({
-          ...current,
-          projects: current.projects.map((project) =>
-            project.id === projectId ? { ...project, visibility } : project
-          )
-        }));
-      },
-      moveProject(projectId: string, direction: "up" | "down") {
-        update((current) => reorderProject(current, projectId, direction));
-      },
-      addProject(draft: DraftProject) {
-        const title = draft.title.trim();
-
-        if (!title) {
-          return;
-        }
-
-        update((current) => {
-          const project: Project = {
-            id: makeId("project"),
-            ownerId: current.currentUser.id,
-            title,
-            description: draft.description.trim() || "A new project to shape as you go.",
-            color: projectColors[current.projects.length % projectColors.length],
-            visibility: "private",
-            priority: current.projects.length + 1,
-            isShared: false,
-            termLabel: current.currentUser.profile.termLabel,
-            goalType: draft.goalType ?? "project",
-            cadence: draft.cadence,
-            tracking: draft.tracking?.trim(),
-            target: draft.target?.trim(),
-            duration: draft.duration?.trim(),
-            milestones: draft.milestones?.map((milestone, index) => ({
-              ...milestone,
-              id: makeId(`milestone-${index}`),
-              title: milestone.title.trim(),
-              timing: milestone.timing.trim()
-            }))
-          };
-
-          return {
-            ...current,
-            projects: [...current.projects, project],
-            memberships: [
-              ...current.memberships,
-              {
-                id: makeId("membership"),
-                projectId: project.id,
-                userId: current.currentUser.id,
-                role: "owner",
-                joinedAt: new Date().toISOString()
-              }
-            ]
-          };
-        });
-      },
-      toggleFriendFeedback(friendId: string) {
-        update((current) => ({
-          ...current,
-          friends: current.friends.map((friend) =>
-            friend.id === friendId
-              ? {
-                  ...friend,
-                  feedbackMode: friend.feedbackMode === "critiqueOpen" ? "cheersOnly" : "critiqueOpen"
-                }
-              : friend
-          )
-        }));
-      },
-      addDemoFriend() {
-        update((current) => ({
-          ...current,
-          friends: [
-            ...current.friends,
-            {
-              id: makeId("friend"),
-              userId: makeId("user-demo"),
-              name: "New close friend",
-              handle: `@close${current.friends.length + 1}`,
-              progress: 0.32,
-              feedbackMode: "cheersOnly",
-              focus: "First week",
-              lastSignal: "Ready for quiet accountability"
-            }
-          ]
-        }));
-      },
-      addComment(targetId: string, comment: string) {
-        const cleanComment = comment.trim();
-
-        if (!cleanComment) {
-          return;
-        }
-
-        update((current) => ({
-          ...current,
-          reactions: [
-            ...current.reactions,
-            {
-              id: makeId("comment"),
-              authorId: current.currentUser.id,
-              targetId,
-              targetType: "log",
-              type: "cheer",
-              comment: cleanComment,
-              createdAt: new Date().toISOString()
-            }
-          ]
-        }));
-      },
-      updateLogNote(logId: string, note: string) {
-        update((current) => ({
-          ...current,
-          logs: current.logs.map((entry) =>
-            entry.id === logId ? { ...entry, note: note.trim() } : entry
-          )
-        }));
-      },
-      updateProfile(profile: Partial<UserProfile>) {
-        update((current) => ({
-          ...current,
-          currentUser: {
-            ...current.currentUser,
-            profile: { ...current.currentUser.profile, ...profile }
-          }
-        }));
-      },
-      setNotificationPreference(
-        key: keyof AppData["currentUser"]["notificationPreferences"],
-        enabled: boolean
-      ) {
-        update((current) => ({
-          ...current,
-          currentUser: {
-            ...current.currentUser,
-            notificationPreferences: {
-              ...current.currentUser.notificationPreferences,
-              [key]: enabled
-            }
-          }
-        }));
-      },
-      async reset() {
-        const fresh = await resetAppData();
-        setData(fresh);
-      }
-    }),
-    [selectedDate, update]
-  );
-
-  return {
-    data,
-    actions,
+  const actions = useMemo(() => createAppActions({
     selectedDate,
-    setSelectedDate,
-    isReady
-  };
+    update,
+    replace,
+    reset: async () => (await repository.reset()).data
+  }), [replace, repository, selectedDate, update]);
+
+  return { data, actions, selectedDate, setSelectedDate, isReady, persistence };
 }
 
-function upsertLog(
-  current: AppData,
-  itemId: string,
-  date: string,
-  status: LogStatus,
-  note?: string
-): AppData {
-  const existing = current.logs.find((entry) => entry.itemId === itemId && entry.date === date);
-
-  if (existing) {
-    return {
-      ...current,
-      logs: current.logs.map((entry) =>
-        entry.id === existing.id
-          ? {
-              ...entry,
-              status,
-              note: note ?? entry.note,
-              timezone: current.currentUser.timezone,
-              createdAt: new Date().toISOString()
-            }
-          : entry
-      )
-    };
-  }
-
-  return {
-    ...current,
-    logs: [
-      ...current.logs,
-      {
-        id: makeId("log"),
-        itemId,
-        date,
-        status,
-        note,
-        timezone: current.currentUser.timezone,
-        createdAt: new Date().toISOString()
-      }
-    ]
-  };
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
 }
 
-function reorderProject(current: AppData, projectId: string, direction: "up" | "down"): AppData {
-  const projects = [...current.projects].sort((first, second) => first.priority - second.priority);
-  const index = projects.findIndex((project) => project.id === projectId);
-  const nextIndex = direction === "up" ? index - 1 : index + 1;
-
-  if (index < 0 || nextIndex < 0 || nextIndex >= projects.length) {
-    return current;
-  }
-
-  const moving = projects[index];
-  projects[index] = projects[nextIndex];
-  projects[nextIndex] = moving;
-
-  return {
-    ...current,
-    projects: projects.map((project, order) => ({ ...project, priority: order + 1 }))
-  };
+function nonSyncDiagnostics(diagnostics: DataDiagnostic[]): DataDiagnostic[] {
+  return diagnostics.filter((item) => !["remote_unavailable", "sync_pending", "permission_denied"].includes(item.code));
 }

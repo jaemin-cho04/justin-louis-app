@@ -1,0 +1,41 @@
+on:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    steps:
+      - uses: eas/checkout
+      - uses: eas/install_node_modules
+      - run: npm run verify
+
+  build_android:
+    needs: [verify]
+    type: build
+    params:
+      platform: android
+      profile: production
+
+  build_ios:
+    needs: [verify]
+    type: build
+    params:
+      platform: ios
+      profile: production
+
+  approve_release:
+    needs: [build_android, build_ios]
+    type: require-approval
+
+  submit_android:
+    needs: [approve_release, build_android]
+    type: submit
+    params:
+      build_id: ${{ needs.build_android.outputs.build_id }}
+      profile: production
+
+  submit_ios:
+    needs: [approve_release, build_ios]
+    type: submit
+    params:
+      build_id: ${{ needs.build_ios.outputs.build_id }}
+      profile: production

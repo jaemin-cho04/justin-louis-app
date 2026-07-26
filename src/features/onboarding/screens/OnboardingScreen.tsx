@@ -6,6 +6,7 @@ import { emptyProfile, productTagline } from "../../../domain/fixtures/seed";
 import { AppButton } from "../../../shared/components/AppButton";
 import { colors } from "../../../shared/theme/colors";
 import type { UserProfile } from "../../../domain/model/types";
+import { isValidHandle, normalizeHandle } from "../../../shared/utils/validation";
 
 type Props = {
   onComplete: (profile: UserProfile) => void;
@@ -17,9 +18,28 @@ export function OnboardingScreen({ onComplete }: Props) {
     name: "",
     handle: ""
   });
+  const [error, setError] = useState("");
 
   const update = (key: keyof UserProfile, value: string) => {
     setProfile((current) => ({ ...current, [key]: value }));
+    if (error) setError("");
+  };
+
+  const complete = () => {
+    const name = profile.name.trim();
+    const rawHandle = profile.handle.trim().replace(/^@+/, "");
+    const termLabel = profile.termLabel.trim();
+
+    if (!name || !rawHandle || !termLabel) {
+      setError("Enter your name, handle, and term label to continue.");
+      return;
+    }
+    if (!isValidHandle(rawHandle)) {
+      setError("Use 3–32 letters, numbers, or underscores for your handle.");
+      return;
+    }
+
+    onComplete({ ...profile, name, handle: normalizeHandle(rawHandle), termLabel });
   };
 
   return (
@@ -33,8 +53,8 @@ export function OnboardingScreen({ onComplete }: Props) {
       <Text style={styles.subtitle}>{productTagline}</Text>
 
       <View style={styles.form}>
-        <Field label="Name" value={profile.name} onChangeText={(value) => update("name", value)} />
-        <Field label="Handle" value={profile.handle} onChangeText={(value) => update("handle", value)} />
+        <Field label="Name" value={profile.name} onChangeText={(value) => update("name", value)} autoCapitalize="words" />
+        <Field label="Handle" value={profile.handle} onChangeText={(value) => update("handle", value)} autoCapitalize="none" />
         <Field
           label="Term label"
           value={profile.termLabel}
@@ -42,7 +62,8 @@ export function OnboardingScreen({ onComplete }: Props) {
         />
       </View>
 
-      <AppButton label="Start tracking" onPress={() => onComplete(profile)} />
+      {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
+      <AppButton label="Start tracking" onPress={complete} />
     </KeyboardAvoidingView>
   );
 }
@@ -50,11 +71,13 @@ export function OnboardingScreen({ onComplete }: Props) {
 function Field({
   label,
   value,
-  onChangeText
+  onChangeText,
+  autoCapitalize = "sentences"
 }: {
   label: string;
   value: string;
   onChangeText: (value: string) => void;
+  autoCapitalize?: "none" | "sentences" | "words" | "characters";
 }) {
   return (
     <View style={styles.field}>
@@ -62,6 +85,8 @@ function Field({
       <TextInput
         value={value}
         onChangeText={onChangeText}
+        accessibilityLabel={label}
+        autoCapitalize={autoCapitalize}
         placeholderTextColor="#948CA2"
         style={styles.input}
       />
@@ -130,5 +155,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     fontSize: 16,
     fontWeight: "700"
+  },
+  error: {
+    color: "#F87171",
+    fontSize: 13,
+    marginBottom: 12
   }
 });

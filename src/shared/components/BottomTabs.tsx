@@ -28,14 +28,16 @@ export function BottomTabs({ activeTab, onChange }: Props) {
         return (
           <Pressable
             key={tab.id}
-            accessibilityRole="tab"
+            accessibilityRole="button"
+            accessibilityLabel={tab.label}
             accessibilityState={{ selected: isActive }}
             onPress={() => onChange(tab.id)}
-            style={({ pressed }) => [styles.tab, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.tab, isActive && styles.activeTab, pressed && styles.pressed]}
           >
             <Ionicons
+              accessible={false}
               name={tab.icon}
-              size={22}
+              size={21}
               color={isActive ? colors.purple : colors.inkMuted}
             />
             <Text style={[styles.label, isActive && styles.activeLabel]} numberOfLines={1}>
@@ -54,13 +56,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    minHeight: 76,
+    minHeight: 74,
     backgroundColor: colors.surfaceSoft,
     borderTopWidth: 1,
     borderTopColor: "#1E1E22",
     flexDirection: "row",
     paddingHorizontal: 12,
-    paddingTop: 12,
+    paddingTop: 9,
     paddingBottom: 10
   },
   tab: {
@@ -68,7 +70,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
-    borderRadius: 20
+    borderRadius: 16
+  },
+  activeTab: {
+    backgroundColor: colors.purpleDeep
   },
   pressed: {
     backgroundColor: colors.surface

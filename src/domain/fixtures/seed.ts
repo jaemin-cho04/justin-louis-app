@@ -190,22 +190,52 @@ export const seedData: AppData = {
     {
       id: "friend-study",
       userId: partnerOneId,
-      name: "Study partner",
-      handle: "@study",
-      progress: 0.68,
+      name: "Louis",
+      handle: "@louis",
+      progress: 0.71,
       feedbackMode: "critiqueOpen",
-      focus: "Research sprint",
-      lastSignal: "Finished draft methods section"
+      focus: "Runs",
+      lastSignal: "Finished an easy 5K"
     },
     {
       id: "friend-research",
       userId: partnerTwoId,
-      name: "Research partner",
-      handle: "@research",
-      progress: 0.44,
+      name: "Michelle",
+      handle: "@michelle",
+      progress: 0.88,
       feedbackMode: "cheersOnly",
-      focus: "MCAT biology",
-      lastSignal: "Logged a BreakDay"
+      focus: "Study",
+      lastSignal: "Completed today's focus block"
+    },
+    {
+      id: "friend-justin",
+      userId: "user-demo-justin",
+      name: "Justin",
+      handle: "@justin",
+      progress: 0.63,
+      feedbackMode: "cheersOnly",
+      focus: "Portfolio",
+      lastSignal: "Shipped a project update"
+    },
+    {
+      id: "friend-raymond",
+      userId: "user-demo-raymond",
+      name: "Raymond",
+      handle: "@ray",
+      progress: 0.54,
+      feedbackMode: "critiqueOpen",
+      focus: "Training",
+      lastSignal: "Logged today's work"
+    },
+    {
+      id: "friend-jay",
+      userId: "user-demo-jay",
+      name: "Jay",
+      handle: "@jay",
+      progress: 0.39,
+      feedbackMode: "cheersOnly",
+      focus: "Applications",
+      lastSignal: "Started a new milestone"
     }
   ],
   friendships: [
